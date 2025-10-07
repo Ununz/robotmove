@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ... ส่วน head และ style เหมือนเดิมทุกประการ ไม่ต้องแก้ไข ... -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Professional Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    /* ... CSS ทั้งหมดเหมือนเดิม ... */
+    :root{
+      --surface-glass: rgba(255,255,255,0.94);
+      --border-glass: rgba(255,255,255,0.45);
+      --brand-primary:#6366f1; --brand-primary-dark:#4f46e5;
+      --brand-accent:#22d3ee; --brand-success:#22c55e;
+      --brand-warn:#f97316; --brand-warn-dark:#db6802;
+      --text-muted:#64748b;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      color:#0f172a;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(99,102,241,0.28), transparent 55%),
+        radial-gradient(circle at 85% 80%, rgba(45,212,191,0.25), transparent 50%),
+        #eef2ff;
+      min-height:100vh;
+    }
+    .page-wrapper{ width:min(1180px,100%); margin:0 auto; padding:48px 24px 56px; }
+    @media (max-width:576px){ .page-wrapper{ padding:32px 16px 40px; } }
+
+    .glass-card{ background:var(--surface-glass); border-radius:20px; border:1px solid var(--border-glass); box-shadow:0 28px 48px -36px rgba(15,23,42,0.8); backdrop-filter:blur(12px); position:relative; }
+    .hero-card{ background:linear-gradient(135deg, rgba(79,70,229,0.95), rgba(14,165,233,0.9)); color:#f8fafc; overflow:hidden; }
+    .hero-card::after{ content:''; position:absolute; inset:0; background:radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 55%); opacity:0.6; }
+    .hero-inner{ position:relative; z-index:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:32px; }
+    .hero-title{ font-size:clamp(1.9rem,1.8vw + 1.3rem,2.8rem); font-weight:700; margin:0; }
+    .hero-subtitle{ margin:0; font-size:1rem; opacity:0.9; }
+    .hero-subtitle.status-success{ color:#bbf7d0; opacity:1; font-weight:600; }
+    .hero-visual{ font-size:3.5rem; opacity:0.5; }
+
+    .hero-badge{ display:inline-flex; align-items:center; gap:10px; padding:10px 18px; border-radius:999px; background:rgba(30,64,175,0.45); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.12em; font-weight:600; transition:background .2s, transform .2s; }
+    .hero-badge .badge-indicator{ width:12px; height:12px; border-radius:50%; background:#f87171; box-shadow:0 0 0 0 rgba(248,113,113,0.6); transition:background .3s, box-shadow .3s; }
+    .hero-badge .badge-label{ color:#f8fafc; }
+    .hero-badge.is-connecting{ background:rgba(59,130,246,0.45); }
+    .hero-badge.is-connecting .badge-indicator{ background:#60a5fa; box-shadow:0 0 0 0 rgba(96,165,250,0.6); }
+    .hero-badge.is-online{ background:rgba(34,197,94,0.4); }
+    .hero-badge.is-online .badge-indicator{ background:var(--brand-success); box-shadow:0 0 0 0 rgba(34,197,94,0.6); }
+    .badge-indicator.pulse{ animation:badgePulse 1.25s ease-in-out infinite; }
+    @keyframes badgePulse{ 0%{ box-shadow:0 0 0 0 rgba(96,165,250,0.6);} 70%{ box-shadow:0 0 0 12px rgba(96,165,250,0);} 100%{ box-shadow:0 0 0 0 rgba(96,165,250,0);} }
+
+    .section-title{ font-weight:700; font-size:1.1rem; color:#1e293b; }
+    .section-subtitle{ font-size:.95rem; color:var(--text-muted); margin:0; }
+    .section-helper{ font-size:.85rem; color:var(--text-muted); }
+
+    #config-section{ padding:32px; }
+    #config-section .form-label{ font-size:.75rem; letter-spacing:.1em; font-weight:600; color:var(--text-muted); text-transform:uppercase; }
+    #config-section .form-control{ border-radius:14px; border:1px solid rgba(148,163,184,0.4); padding:.75rem 1rem; transition:border-color .2s, box-shadow .2s; }
+    #config-section .form-control:focus{ border-color:var(--brand-primary); box-shadow:0 0 0 .2rem rgba(99,102,241,0.2); }
+
+    .btn-gradient{ background:linear-gradient(135deg, var(--brand-primary-dark), var(--brand-primary)); border:none; color:#fff; font-weight:600; border-radius:14px; transition:transform .2s, box-shadow .2s, opacity .2s; }
+    .btn-gradient:hover{ transform:translateY(-1px); box-shadow:0 16px 30px -20px rgba(79,70,229,0.9); }
+    .btn-gradient:disabled{ opacity:.6; transform:none; box-shadow:none; }
+
+    .stat-card{ display:flex; align-items:center; gap:18px; padding:22px; border-radius:18px; color:#fff; box-shadow:0 18px 38px -28px rgba(15,23,42,0.8); }
+    .stat-card.total{ background:linear-gradient(135deg,#4f46e5,#7c3aed); }
+    .stat-card.active{ background:linear-gradient(135deg,#15803d,#22c55e); }
+    .stat-card.inactive{ background:linear-gradient(135deg,#d97706,#f97316); }
+    .stat-icon{ width:52px; height:52px; border-radius:16px; background:rgba(255,255,255,0.18); display:grid; place-items:center; font-size:1.6rem; }
+    .stat-data{ display:flex; flex-direction:column; gap:4px; }
+    .stat-label{ text-transform:uppercase; font-size:.75rem; letter-spacing:.12em; opacity:.85; }
+    .stat-value{ font-size:2.1rem; font-weight:700; line-height:1; }
+
+    .team-column,.log-column{ height:100%; }
+    .team-panel{ padding:28px; display:flex; flex-direction:column; gap:18px; height:100%; }
+    .team-status-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; max-height:50vh; overflow-y:auto; }
+    .team-status-list li{ background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.14); border-radius:18px; padding:14px 18px; transition:transform .15s, border-color .2s, box-shadow .2s, background .2s; cursor:pointer; }
+    .team-status-list li:hover{ transform:translateY(-1px); border-color:rgba(99,102,241,0.38); box-shadow:0 16px 32px -28px rgba(79,70,229,0.8); background:rgba(99,102,241,0.12); }
+    .team-status-list li.filtered{ background:rgba(99,102,241,0.2); border-color:rgba(99,102,241,0.58); box-shadow:0 18px 36px -28px rgba(79,70,229,0.85); }
+    .team-item{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .team-item-main{ display:flex; align-items:center; gap:14px; }
+    .team-details{ display:flex; flex-direction:column; }
+    .team-name{ font-weight:600; color:#111827; }
+    .last-seen{ font-size:.75rem; color:var(--text-muted); }
+    .team-status-list .status-dot{ width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.6); transition:transform .15s, box-shadow .15s; }
+    .status-active{ background:var(--brand-success); box-shadow:0 0 12px rgba(34,197,94,0.55); }
+    .status-inactive{ background:var(--brand-warn); box-shadow:0 0 12px rgba(249,115,22,0.55); }
+    .status-dot.beat{ transform:scale(1.35); box-shadow:0 0 0 8px rgba(34,197,94,0.18); }
+    .team-status-list .bi-chevron-right{ color:var(--text-muted); font-size:1rem; }
+
+    .empty-state{ text-align:center; padding:32px 20px; border-radius:18px; border:1px dashed rgba(148,163,184,0.45); background:rgba(148,163,184,0.12); color:var(--text-muted); font-size:.9rem; }
+
+    .broadcast-card{ padding:28px; display:flex; flex-direction:column; gap:16px; }
+    .broadcast-card .input-group{ border-radius:14px; overflow:hidden; box-shadow:0 14px 32px -28px rgba(15,23,42,0.75); }
+    .broadcast-card .form-control{ border:none; padding:.75rem 1rem; font-weight:500; font-size:.9rem; }
+    .broadcast-card .form-control:focus{ box-shadow:none; }
+    #broadcast-cmd-btn{ background:linear-gradient(135deg, var(--brand-warn-dark), var(--brand-warn)); border:none; color:#fff; font-weight:600; font-size:.95rem; padding:.6rem 1.1rem; transition:transform .2s, box-shadow .2s; }
+    #broadcast-cmd-btn:hover{ transform:translateY(-1px); box-shadow:0 18px 34px -28px rgba(251,191,36,0.9); }
+
+    .log-panel{ padding:28px; height:100%; display:flex; flex-direction:column; gap:16px; }
+    .log-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .log-topic{ font-size:.85rem; color:var(--text-muted); display:inline-block; margin-top:4px; }
+    #show-all-btn{ display:none; background:rgba(99,102,241,0.14); border:1px solid rgba(99,102,241,0.35); color:var(--brand-primary-dark); font-weight:600; border-radius:999px; padding:8px 18px; transition:background .2s, border-color .2s, transform .2s; }
+    #show-all-btn:hover{ background:rgba(99,102,241,0.2); border-color:rgba(99,102,241,0.5); transform:translateY(-1px); }
+
+    .log-container{ flex:1; background:#0f172a; border-radius:18px; border:1px solid rgba(15,23,42,0.4); padding:22px; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; font-family:'JetBrains Mono','SFMono-Regular',monospace; font-size:.9rem; line-height:1.6; display:flex; flex-direction:column; gap:10px; box-shadow:inset 0 0 0 1px rgba(30,41,59,0.6); min-height:280px; max-height:clamp(300px, 60vh, 520px); scrollbar-gutter:stable both-edges; }
+    .log-entry{ background:rgba(30,41,59,0.7); border:1px solid rgba(100,116,139,0.3); border-radius:14px; padding:10px 14px; color:#e2e8f0; transition:transform .15s, border-color .2s, background .2s; }
+    .log-entry:hover{ transform:translateY(-1px); border-color:rgba(148,163,184,0.4); }
+    .log-entry-system{ background:rgba(56,189,248,0.16); border-color:rgba(56,189,248,0.45); }
+    .log-entry-broadcast{ background:rgba(251,191,36,0.16); border-color:rgba(251,191,36,0.45); }
+    .log-team{ color:#a5b4fc; font-weight:600; }
+    .log-entry-system .log-team{ color:#38bdf8; }
+    .log-entry-broadcast .log-team{ color:#facc15; }
+    .log-payload{ color:#f8fafc; opacity:.88; }
+    .log-entry-broadcast .log-payload{ color:#fde68a; }
+    .log-entry.hidden{ display:none !important; }
+
+    .main-layout{ display:flex; flex-direction:column; gap:28px; }
+    @media (max-width:991px){ .team-status-list{ max-height:40vh; } .log-container{ min-height:40vh; max-height:none; } }
+    @media (max-width:576px){
+      .hero-inner{ padding:24px; } .hero-visual{ display:none; }
+      #config-section{ padding:24px; }
+      .team-panel,.broadcast-card,.log-panel{ padding:22px; } .log-container{ padding:18px; }
+    }
+    .team-status-list::-webkit-scrollbar, .log-container::-webkit-scrollbar{ width:8px; }
+    .team-status-list::-webkit-scrollbar-track, .log-container::-webkit-scrollbar-track{ background:rgba(15,23,42,0.2); border-radius:999px; }
+    .team-status-list::-webkit-scrollbar-thumb, .log-container::-webkit-scrollbar-thumb{ background:rgba(99,102,241,0.45); border-radius:999px; }
+    .team-status-list::-webkit-scrollbar-thumb:hover, .log-container::-webkit-scrollbar-thumb:hover{ background:rgba(99,102,241,0.65); }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- ... ส่วน Header, Config, Stats เหมือนเดิม ... -->
+    <header class="glass-card hero-card mb-4">
+      <div class="hero-inner">
+        <div class="d-flex flex-column gap-3">
+          <h1 class="hero-title">Teacher's Professional Dashboard</h1>
+          <p class="hero-subtitle" id="mqtt-status">Please configure and connect.</p>
+          <div class="hero-badge" id="connection-badge">
+            <span class="badge-indicator" id="connection-indicator"></span>
+            <span class="badge-label" id="connection-badge-label">Waiting for connection</span>
+          </div>
+        </div>
+        <div class="hero-visual"><i class="bi-broadcast-pin"></i></div>
+      </div>
+    </header>
+
+    <section id="config-section" class="glass-card mb-4">
+      <div class="section-heading mb-3">
+        <h2 class="section-title mb-1">Connection Settings</h2>
+        <p class="section-subtitle">Enter broker details to begin listening to team activity.</p>
+      </div>
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-6">
+          <label for="broker-url" class="form-label">MQTT Broker URL</label>
+          <input type="text" class="form-control form-control-lg" id="broker-url" value="wss://broker.hivemq.com:8884/mqtt">
+        </div>
+        <div class="col-12 col-lg-4">
+          <label for="root-topic" class="form-label">Root Topic</label>
+          <input type="text" class="form-control form-control-lg" id="root-topic" value="nlbot">
+        </div>
+        <div class="col-12 col-lg-2 d-grid">
+          <button id="connect-btn" class="btn btn-gradient py-3">Connect</button>
+        </div>
+      </div>
+    </section>
+
+    <main id="dashboard-section" class="main-layout" style="display:none;">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <div class="stat-card total">
+            <div class="stat-icon"><i class="bi-diagram-3-fill"></i></div>
+            <div class="stat-data"><span class="stat-label">Teams discovered</span><span class="stat-value" id="team-count">0</span></div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="stat-card active">
+            <div class="stat-icon"><i class="bi-lightning-charge-fill"></i></div>
+            <div class="stat-data"><span class="stat-label">Currently active</span><span class="stat-value" id="active-team-count">0</span></div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="stat-card inactive">
+            <div class="stat-icon"><i class="bi-activity"></i></div>
+            <div class="stat-data"><span class="stat-label">Awaiting activity</span><span class="stat-value" id="inactive-team-count">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4 align-items-start">
+        <div class="col-12 col-lg-4 d-flex flex-column gap-4 team-column">
+          <div class="glass-card team-panel flex-grow-1">
+            <div class="d-flex align-items-center justify-content-between">
+              <h3 class="section-title mb-0">Teams</h3>
+              <span class="badge text-bg-light text-uppercase fw-semibold">Live feed</span>
+            </div>
+            <p class="section-helper mb-0">Select a team to filter logs or send a specific command.</p>
+            <ul class="team-status-list" id="team-status-container"></ul>
+          </div>
+
+          <div class="glass-card broadcast-card">
+            <div>
+              <h3 class="section-title mb-1">Broadcast Command</h3>
+              <p class="section-helper mb-0">Send a quick instruction to every connected team.</p>
+            </div>
+            <div class="input-group input-group-lg">
+              <input type="text" id="broadcast-cmd-input" class="form-control" placeholder="e.g., FWD:1 or STOP">
+              <button id="broadcast-cmd-btn" class="btn">Send to all</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-8 log-column">
+          <div class="glass-card log-panel h-100">
+            <div class="log-header">
+              <div>
+                <h3 class="section-title mb-0">Live Log</h3>
+                <span class="log-topic">Topic: <span id="subscribed-topic-display"></span></span>
+              </div>
+
+              <!-- Minimal controls: visibility filters + show-all -->
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="showEvt" checked>
+                  <label class="form-check-label" for="showEvt">Show /evt</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="showCmd">
+                  <label class="form-check-label" for="showCmd">Show /cmd</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="showBeat">
+                  <label class="form-check-label" for="showBeat">Show heartbeats</label>
+                </div>
+                <button id="show-all-btn">Show all logs</button>
+              </div>
+            </div>
+
+            <div class="log-container" id="log-container"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- +++ ADDED: MODAL FOR SPECIFIC COMMANDS +++ -->
+  <div class="modal fade" id="specific-command-modal" tabindex="-1" aria-labelledby="specificCommandModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card">
+        <div class="modal-header border-0">
+          <h5 class="modal-title section-title" id="specificCommandModalLabel">Send Command to <span id="modal-team-name"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="section-helper">Enter a command for this team only.</p>
+          <input type="text" class="form-control form-control-lg" id="specific-cmd-input" placeholder="e.g., FWD:2">
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-gradient" id="send-specific-cmd-btn">Send Command</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // --- UI Elements ---
+  const configSection = document.getElementById('config-section'),
+        dashboardSection = document.getElementById('dashboard-section');
+  const connectBtn = document.getElementById('connect-btn'),
+        showAllBtn = document.getElementById('show-all-btn');
+  const brokerUrlInput = document.getElementById('broker-url'),
+        rootTopicInput = document.getElementById('root-topic');
+  const logContainer = document.getElementById('log-container'),
+        teamStatusContainer = document.getElementById('team-status-container');
+  const mqttStatus = document.getElementById('mqtt-status'),
+        subscribedTopicDisplay = document.getElementById('subscribed-topic-display');
+  const teamCountSpan = document.getElementById('team-count'),
+        activeCountSpan = document.getElementById('active-team-count'),
+        inactiveCountSpan = document.getElementById('inactive-team-count');
+  const broadcastCmdInput = document.getElementById('broadcast-cmd-input'),
+        broadcastCmdBtn = document.getElementById('broadcast-cmd-btn');
+  const connectionBadge = document.getElementById('connection-badge'),
+        connectionIndicator = document.getElementById('connection-indicator'),
+        connectionBadgeLabel = document.getElementById('connection-badge-label');
+
+  const showEvtChk = document.getElementById('showEvt');
+  const showCmdChk = document.getElementById('showCmd');
+  const showBeatChk = document.getElementById('showBeat');
+  
+  // +++ ADDED: Modal elements
+  const specificCommandModalEl = document.getElementById('specific-command-modal');
+  const specificCommandModal = new bootstrap.Modal(specificCommandModalEl);
+  const modalTeamNameSpan = document.getElementById('modal-team-name');
+  const specificCmdInput = document.getElementById('specific-cmd-input');
+  const sendSpecificCmdBtn = document.getElementById('send-specific-cmd-btn');
+
+  // --- App State ---
+  const teams = {};
+  let client = null;
+  let currentFilter = null;
+  let currentTargetTeamTopic = null; // To store topic for the modal
+  const INACTIVE_TIMEOUT_MS = 30000;
+  const MAX_LOG_ENTRIES = 1500;
+
+  // --- Event Listeners ---
+  connectBtn.addEventListener('click', () => {
+    // ... (This function is unchanged)
+    const brokerUrl = brokerUrlInput.value.trim();
+    const rootTopic = rootTopicInput.value.trim();
+    if (!brokerUrl || !rootTopic) { alert("Broker URL and Root Topic cannot be empty."); return; }
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'Connecting...';
+    mqttStatus.textContent = `Connecting to ${brokerUrl}...`;
+    mqttStatus.classList.remove('status-success');
+    if (connectionBadge) { connectionBadge.classList.remove('is-online'); connectionBadge.classList.add('is-connecting'); }
+    if (connectionBadgeLabel) { connectionBadgeLabel.textContent = 'Connecting...'; }
+    if (connectionIndicator) { connectionIndicator.classList.add('pulse'); }
+    initializeMqtt(brokerUrl, rootTopic);
+  });
+
+  showAllBtn.addEventListener('click', () => {
+    currentFilter = null;
+    applyFilters();
+    document.querySelectorAll('.team-status-list li').forEach(el => el.classList.remove('filtered'));
+    logContainer.scrollTop = logContainer.scrollHeight;
+  });
+
+  [showEvtChk, showCmdChk, showBeatChk].forEach(cb => cb.addEventListener('change', applyFilters));
+
+  broadcastCmdBtn.addEventListener('click', () => {
+      // *** MODIFIED FOR CORRECT BROADCAST TOPIC ***
+      const command = broadcastCmdInput.value.trim().toUpperCase();
+      if (!command) { alert('Please enter a command to broadcast.'); return; }
+      if (!client || !client.connected) { alert("Not connected."); return; }
+      const rootTopic = rootTopicInput.value.trim();
+      const broadcastTopic = `${rootTopic}/all/cmd`; 
+
+      if (confirm(`Send "${command}" to all teams via ${broadcastTopic}?`)) {
+          logMessage('ADMIN-BROADCAST', `Sending "${command}" to all teams...`, 'broadcast', false);
+          client.publish(broadcastTopic, command);
+          broadcastCmdInput.value = '';
+      }
+  });
+
+  // +++ ADDED: Event listener for the specific command modal button
+  sendSpecificCmdBtn.addEventListener('click', () => {
+      const command = specificCmdInput.value.trim().toUpperCase();
+      if (!command) { alert('Please enter a command.'); return; }
+      if (!currentTargetTeamTopic) { alert('No target team selected.'); return; }
+
+      const commandTopic = `${currentTargetTeamTopic}/cmd`;
+      logMessage('ADMIN-SPECIFIC', `Sending "${command}" to ${commandTopic}`, 'cmd', false);
+      client.publish(commandTopic, command);
+
+      specificCmdInput.value = '';
+      specificCommandModal.hide();
+  });
+
+  function initializeMqtt(brokerUrl, rootTopic) {
+      // ... (unchanged except for the 'message' handler logic)
+      client = mqtt.connect(brokerUrl);
+      client.on('connect', () => {
+        configSection.style.display = 'none';
+        dashboardSection.style.display = 'flex';
+        showAllBtn.style.display = 'inline-flex';
+        const adminTopic = `${rootTopic}/#`;
+        subscribedTopicDisplay.textContent = adminTopic;
+        mqttStatus.textContent = `Connected! Monitoring: ${adminTopic}`;
+        mqttStatus.classList.add('status-success');
+        if (connectionBadge) { connectionBadge.classList.remove('is-connecting'); connectionBadge.classList.add('is-online'); }
+        if (connectionBadgeLabel) { connectionBadgeLabel.textContent = 'Live monitoring'; }
+        if (connectionIndicator) { connectionIndicator.classList.remove('pulse'); }
+        logMessage('System', 'Welcome, Admin. Waiting for messages...', 'system', false);
+        client.subscribe(adminTopic, err => { if (err) logMessage('System', `Subscription failed: ${err}`, 'system', false); });
+        renderTeamList();
+      });
+
+      client.on('error', (err) => {
+        // ... (unchanged)
+        console.error('MQTT error:', err);
+        mqttStatus.textContent = `Connection error: ${err?.message || err}`;
+        mqttStatus.classList.remove('status-success');
+        if (connectionBadge) connectionBadge.classList.remove('is-connecting','is-online');
+        if (connectionBadgeLabel) connectionBadgeLabel.textContent = 'Error — retry';
+        if (connectionIndicator) connectionIndicator.classList.remove('pulse');
+        connectBtn.disabled = false; connectBtn.textContent = 'Connect';
+      });
+
+      client.on('message', (topic, payload) => {
+          // *** MODIFIED FOR FLEXIBLE TOPIC PARSING ***
+          const msg = payload.toString();
+          const parts = topic.split('/');
+          
+          if (parts.length < 3) return; // Expect at least root/team/suffix
+          if (parts[1] === 'all') return; // Ignore messages published to 'all' topic
+
+          const teamTopicBase = parts.slice(0, -1).join('/'); // e.g., nlbot/classA/TEAM01
+          const suffix = parts[parts.length - 1]; // e.g., evt, cmd
+          const isHeartbeat = msg.indexOf('SYS heartbeat') === 0;
+
+          if (!teams[teamTopicBase]) teams[teamTopicBase] = { status:'active', lastSeen:Date.now(), lastBeat:0 };
+          teams[teamTopicBase].status = 'active';
+          teams[teamTopicBase].lastSeen = Date.now();
+          if (isHeartbeat) teams[teamTopicBase].lastBeat = Date.now();
+          renderTeamList();
+
+          if (isHeartbeat && !showBeatChk.checked) return;
+          if (suffix === 'evt' && !showEvtChk.checked) return;
+          if (suffix === 'cmd' && !showCmdChk.checked) return;
+
+          if (msg.indexOf('SYS bridge online') !== -1) {
+              logMessage(teamTopicBase, 'ESP32 bridge rebooted', 'system', false);
+          }
+
+          logMessage(teamTopicBase, msg, suffix, isHeartbeat);
+      });
+  }
+
+  function logMessage(team, msg, suffix = 'evt', isHeartbeat = false) {
+      // ... (This function is unchanged, but now handles ADMIN-SPECIFIC class)
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.dataset.teamTopic = team;
+      entry.dataset.suffix = suffix;
+      entry.dataset.heartbeat = isHeartbeat ? '1' : '0';
+
+      if (team === 'System') entry.classList.add('log-entry-system');
+      else if (team === 'ADMIN-BROADCAST' || team === 'ADMIN-SPECIFIC') entry.classList.add('log-entry-broadcast');
+
+      const teamSpan = document.createElement('span');
+      teamSpan.className = 'log-team';
+      teamSpan.textContent = `[${team.split('/').pop()}]: `; // Display only the last part as name
+
+      const payloadSpan = document.createElement('span');
+      payloadSpan.className = 'log-payload';
+      payloadSpan.textContent = msg;
+
+      entry.append(teamSpan, payloadSpan);
+      logContainer.appendChild(entry);
+
+      if (shouldHideEntry(entry)) entry.classList.add('hidden');
+
+      if (logContainer.children.length > MAX_LOG_ENTRIES) {
+        logContainer.removeChild(logContainer.firstElementChild);
+      }
+
+      logContainer.scrollTop = logContainer.scrollHeight;
+  }
+    
+  function shouldHideEntry(entry) {
+    const team = entry.dataset.teamTopic;
+    const suffix = entry.dataset.suffix || 'evt';
+    const isBeat = entry.dataset.heartbeat === '1';
+    
+    // Allow admin messages to always show if not filtered by team
+    const isAdminMsg = ['System', 'ADMIN-BROADCAST', 'ADMIN-SPECIFIC'].includes(team);
+
+    if (currentFilter && !isAdminMsg && team !== currentFilter) return true;
+    if (isBeat && !showBeatChk.checked) return true;
+    if (suffix === 'evt' && !showEvtChk.checked) return true;
+    if (suffix === 'cmd' && !showCmdChk.checked) return true;
+    return false;
+  }
+
+
+  function applyFilters() {
+      // ... (This function is unchanged)
+       [...logContainer.children].forEach(entry => {
+        if (shouldHideEntry(entry)) entry.classList.add('hidden');
+        else entry.classList.remove('hidden');
+      });
+  }
+
+  function renderTeamList() {
+      // ... (unchanged except for the click event listener)
+      teamStatusContainer.innerHTML = '';
+      const keys = Object.keys(teams).sort();
+      if (keys.length === 0) {
+        teamCountSpan.textContent = '0';
+        if (activeCountSpan) activeCountSpan.textContent = '0';
+        if (inactiveCountSpan) inactiveCountSpan.textContent = '0';
+        teamStatusContainer.innerHTML = '<li class="empty-state">No teams online yet. Keep this tab open while you wait.</li>';
+        return;
+      }
+
+      const now = Date.now();
+      const activeTeams = keys.filter(k => teams[k].status === 'active').length;
+      const inactiveTeams = keys.length - activeTeams;
+      teamCountSpan.textContent = keys.length;
+      if (activeCountSpan) activeCountSpan.textContent = activeTeams;
+      if (inactiveCountSpan) inactiveCountSpan.textContent = inactiveTeams;
+
+      keys.forEach(teamTopicBase => {
+          const t = teams[teamTopicBase];
+          const li = document.createElement('li');
+          li.dataset.teamTopicBase = teamTopicBase;
+          if (teamTopicBase === currentFilter) li.classList.add('filtered');
+
+          const teamName = teamTopicBase.split('/').pop();
+          const statusClass = t.status === 'active' ? 'status-active' : 'status-inactive';
+          const beatClass = (now - (t.lastBeat || 0) < 800) ? 'beat' : '';
+
+          li.innerHTML = `
+              <div class="team-item">
+                  <div class="team-item-main">
+                      <span class="status-dot ${statusClass} ${beatClass}"></span>
+                      <div class="team-details">
+                          <span class="team-name">${teamName}</span>
+                          <span class="last-seen">Last seen ${new Date(t.lastSeen).toLocaleTimeString()}</span>
+                      </div>
+                  </div>
+                  <i class="bi-chevron-right"></i>
+              </div>
+          `;
+
+          // *** MODIFIED: CLICK OPENS MODAL ***
+          li.addEventListener('click', () => {
+              // 1. Set the target for the modal
+              currentTargetTeamTopic = teamTopicBase;
+              modalTeamNameSpan.textContent = teamName;
+              
+              // 2. Open the modal
+              specificCommandModal.show();
+              
+              // 3. Also filter the log view
+              currentFilter = teamTopicBase;
+              document.querySelectorAll('.team-status-list li').forEach(el => el.classList.remove('filtered'));
+              li.classList.add('filtered');
+              applyFilters();
+          });
+
+          teamStatusContainer.appendChild(li);
+      });
+  }
+
+  // Mark inactive after timeout (unchanged)
+  setInterval(() => {
+    // ... (This function is unchanged)
+    const now = Date.now();
+    let changed = false;
+    for (const k in teams) {
+      if (teams[k].status === 'active' && now - teams[k].lastSeen > INACTIVE_TIMEOUT_MS) {
+        teams[k].status = 'inactive'; changed = true;
+      }
+    }
+    if (changed) renderTeamList();
+  }, 5000);
+</script>
+</body>
+</html>

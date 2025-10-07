@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Natural Language Command Center</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --muted:#6b7280; --bg:#fbfbfc; --border:#e6e9ee;
+      --primary:#3b82f6; --primary-dark:#2563eb; --secondary:#6b7280; --success:#10b981;
+      --danger:#ef4444; --warning:#f59e0b; --text:#0f172a; --text-light:#6b7280;
+      --overlay-opacity: 0.03;
+      --card-bg: rgba(255,255,255,0.72);
+      --log-panel-height: 400px;
+    }
+
+    html,body { min-height:100%; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      margin: 0; color: var(--text); min-height: 100vh; -webkit-font-smoothing:antialiased;
+      background: linear-gradient(180deg, #ff9f43 0%, #ff6b6b 35%, #4c6ef5 100%);
+      overflow-x: hidden; overflow-y: auto;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.9;
+      background-image:
+        radial-gradient(30% 28% at 12% 18%, rgba(255,200,120,0.6) 0%, rgba(255,160,90,0.18) 35%, transparent 60%),
+        radial-gradient(44% 36% at 52% 46%, rgba(255,120,90,0.36) 0%, rgba(255,100,120,0.12) 40%, transparent 70%),
+        radial-gradient(34% 30% at 86% 22%, rgba(80,110,255,0.32) 0%, rgba(60,90,255,0.12) 36%, transparent 68%);
+      background-repeat: no-repeat; filter: blur(8px) saturate(120%) contrast(98%) brightness(100%);
+      transform: scale(1.01); mix-blend-mode: screen;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 1;
+      background-image: radial-gradient(60% 60% at 50% 62%, rgba(6,8,12,0) 0%, rgba(15,23,42,var(--overlay-opacity)) 70%, rgba(15,23,42,var(--overlay-opacity)) 100%);
+      mix-blend-mode: multiply;
+    }
+
+    .container { position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 12px; min-height: 100vh; display:flex; flex-direction:column; }
+    .header h1 { margin: 0 0 6px 0; font-size: 30px; letter-spacing: -0.4px; font-weight: 800; color: #f8fafc; text-shadow: 0 4px 18px rgba(15,23,42,0.32); }
+    .header p { margin: 0 0 10px 0; color: rgba(248,250,252,0.75); font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
+
+    .compact-header .header h1 { font-size: 16px; margin-bottom: 4px; }
+    .compact-header .header p { display: none; }
+    .compact-header .container { padding-top: 8px; }
+
+    .card { background: var(--card-bg); border-radius: 10px; padding: 12px; box-shadow: 0 8px 18px rgba(18,24,36,0.05); margin-bottom: 22px; }
+    .header { margin-bottom: 18px; }
+    .card:first-of-type { margin-top: 0; transform: none; }
+
+    input[type=text] { background-color: rgba(255,255,255,0.95); color: var(--text); border: 1px solid rgba(15,23,42,0.06); padding: 14px 16px; border-radius: 12px; font-size: 15px; }
+    input[type=text]:focus { outline: none; border-color: rgba(59,130,246,0.24); box-shadow: 0 12px 30px rgba(59,130,246,0.06); }
+
+    button { background-color: white; cursor: pointer; font-weight: 700; transition: transform 160ms ease, box-shadow 160ms ease; display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid transparent; border-radius: 12px; }
+    button:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(12,18,30,0.07); }
+    button:active { transform: translateY(0); }
+    button:disabled { cursor: not-allowed; background-color: #fbfbfd; color: #9aa3b2; box-shadow: none; }
+    button.primary { border-color: rgba(59,130,246,0.12); background-color: var(--primary); color: white; padding: 12px 16px; }
+    button.primary:hover { background-color: var(--primary-dark); box-shadow: 0 16px 40px rgba(59,130,246,0.14); }
+
+    .row { display: flex; gap: 14px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
+    .input-group { display: flex; width: 100%; gap: 10px; border-radius: 12px; }
+    .input-group input { flex-grow: 1; border-radius: 12px; border-right: none; }
+    .input-group button { border-radius: 10px; }
+
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; border: 1px solid rgba(15,23,42,0.04); background-color: white; font-weight: 700; box-shadow: 0 12px 30px rgba(12,18,30,0.04); flex-shrink: 0;}
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background-color: #fbfbfd; padding: 4px 8px; border-radius: 8px; font-size: 13px; }
+
+    .log-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; align-items: stretch; flex: 1 1 auto; margin-bottom: 12px; }
+    .log-container > div { display: flex; flex-direction: column; min-height: 0; }
+    .log-box { border: 1px solid rgba(15,23,42,0.04); border-radius: 12px; background: rgba(255,255,255,0.95); padding: 18px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:14px; height: var(--log-panel-height); flex: 0 0 var(--log-panel-height); }
+    .log-title { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-weight: 700; color: var(--text); background: rgba(248,250,252,0.7); padding: 10px 14px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; }
+    .log-body { flex:1 1 auto; overflow:auto; display:flex; flex-direction:column; gap:0; }
+    #inputLog, #aiOutput, #log { height: auto !important; min-height: 0; }
+    .log-body > div { padding: 8px 0; border-bottom: 1px solid rgba(240,244,248,0.7); line-height: 1.45; }
+    .log-box .out { color: var(--text-light); }
+    .log-box .in { color: var(--primary); font-weight: 700; }
+    .log-box .hint { color: var(--warn); font-style: italic; background-color: #fff7e6; padding: 10px; border-radius: 8px; margin-top: 8px; }
+    .status-hint { font-size: 14px; color: var(--text-light); margin-top: 8px; }
+
+    .toggle-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; margin-top: 18px; align-items: stretch; }
+    .toggle-block { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255,255,255,0.78); border-radius: 14px; box-shadow: 0 10px 26px rgba(12,18,30,0.06); min-width: 260px; min-height: 130px; justify-content: flex-start; }
+    .toggle-line { display: flex; align-items: center; gap: 12px; }
+    .toggle-block .toggle { width: 130px; }
+    .toggle-title { font-weight: 600; color: var(--text); text-align: left; }
+    .toggle-title.center { text-align: center; }
+    .toggle-sub { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+    .connection-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 8px; margin-top: 6px; }
+    .connection-grid .wide { grid-column: 1 / -1; }
+    .connection-grid input { padding: 12px; border-radius: 10px; border: 1px solid rgba(15,23,42,0.08); font-size: 14px; font-weight: 600; color: var(--text); background: rgba(255,255,255,0.95); box-shadow: inset 0 2px 4px rgba(15,23,42,0.04); }
+    .connection-grid input:focus { border-color: rgba(59,130,246,0.25); box-shadow: 0 6px 18px rgba(59,130,246,0.16); outline: none; }
+    .connection-grid input::placeholder { color: var(--text-light); font-weight: 600; }
+
+    .info-block { justify-content: flex-start; gap: 10px; }
+    .info-block .status-hint { margin: 4px 0 0 0; }
+
+    .toggle { position: relative; display: inline-block; width: 150px; height: 36px; }
+    .toggle input { position: absolute !important; opacity: 0 !important; width: 0 !important; height: 0 !important; margin: 0 !important; left: -9999px !important; }
+    .toggle .toggle-track { position: relative; display: block; width: 100%; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#f3f4f6,#eef2f6); box-shadow: inset 0 2px 8px rgba(12,18,30,0.03); transition: background 240ms, box-shadow 240ms; overflow: hidden; }
+    .toggle .toggle-track .toggle-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 18px; font-weight: 700; color: rgba(6,8,12,0.75); font-size: 14px; z-index:3; pointer-events:none; }
+    .toggle .toggle-track .toggle-thumb { position: absolute; top: 4px; left: 4px; width: 28px; height: calc(100% - 8px); background: white; border-radius: 999px; box-shadow: 0 6px 16px rgba(12,18,30,0.08); transition: left 260ms cubic-bezier(.2,.9,.2,1), right 260ms cubic-bezier(.2,.9,.2,1), transform 260ms; z-index:2; }
+    .toggle .toggle-track .label-center { color: rgba(6,8,12,0.75); font-weight:700; transition: opacity 220ms ease, transform 220ms ease; display:inline-block; }
+    .toggle input:checked + .toggle-track { background: linear-gradient(90deg,#dcfce7,#bbf7d0); box-shadow: inset 0 2px 6px rgba(16,185,129,0.04); }
+    .toggle input:checked + .toggle-track .toggle-thumb { left: auto; right: 4px; }
+    .toggle input:checked + .toggle-track .label-center { color: rgba(6,8,12,0.9); }
+
+    .toggle.connecting .toggle-track { background: linear-gradient(90deg,#fff7ed,#ffedd5); box-shadow: 0 6px 14px rgba(249,115,22,0.06); }
+    .toggle.connected .toggle-track { background: linear-gradient(90deg,#ecfdf5,#bbf7d0); box-shadow: 0 6px 14px rgba(16,185,129,0.06); }
+
+    @keyframes pulse { 0%{ transform: scale(1); }50%{ transform: scale(1.04); }100%{ transform: scale(1); } }
+
+    .footer { text-align: center; margin-top: 0; color: rgba(248,250,252,0.8); font-size: 13px; letter-spacing: 0.3px; }
+    @media (max-width: 900px) {
+      .log-container { grid-template-columns: 1fr; }
+      .toggle-block { min-width: 100%; }
+      .container { padding: 14px; }
+    }
+
+    h3 {
+      position: relative;
+      display: inline-block;
+      background: var(--card-bg);
+      padding: 8px 12px;
+      border-radius: 10px;
+      z-index: 3;
+      margin-top: 0;
+      box-shadow: 0 6px 18px rgba(12,18,30,0.03);
+      font-size: 18px;
+    }
+    /* Heartbeat indicator */
+    .beat-indicator { display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .beat-dot { width:10px; height:10px; border-radius:50%; background:#d1d5db; transition: transform .15s, background .15s; }
+    .beat-dot.on { background:#22c55e; transform: scale(1.35); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧠 Natural Language Command Center</h1>
+      <p>Advanced Natural Language Robot Control Interface</p>
+    </div>
+
+    <div class="card">
+      <div class="input-group">
+        <input id="text" type="text" placeholder="e.g., forward 1 second, then left 0.5 หรือ ไปข้างหน้า 1 วินาที แล้วเลี้ยวซ้าย">
+        <button id="voiceBtn" title="Voice command">🎤</button>
+        <button id="send" class="primary">📤 Send</button>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-block info-block">
+          <div class="toggle-title center">Status</div>
+          <div id="pipelineHint" class="status-hint"></div>
+          <div id="statusHint" class="status-hint"></div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
+            <button id="clearScreen" type="button" class="chip">🧹 Clear screen</button>
+          </div>
+        </div>
+        <div class="toggle-block" id="translateBlock">
+          <div class="toggle-line">
+            <label class="toggle" id="translateWrap">
+              <input id="toggleTranslate" type="checkbox" checked>
+              <span class="toggle-track">
+                <span class="toggle-inner"><span class="label-center">ON</span></span>
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+            <div>
+              <div class="toggle-title">Translator</div>
+              <div class="toggle-sub">Send text to app.py for command plan</div>
+            </div>
+          </div>
+
+          <div class="toggle-line" style="margin-top:14px;">
+            <label class="toggle" id="publishWrap">
+              <input id="togglePublish" type="checkbox">
+              <span class="toggle-track">
+                <span class="toggle-inner"><span class="label-center">OFF</span></span>
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+            <div>
+              <div class="toggle-title">MQTT Publish</div>
+              <div class="toggle-sub">Forward commands to the robot</div>
+            </div>
+          </div>
+
+          <!-- NEW: heartbeat dot under the MQTT Publish toggle -->
+          <div class="beat-indicator">
+            <span id="beatDot" class="beat-dot"></span>
+            <span class="toggle-sub">Device heartbeat</span>
+          </div>
+        </div>
+
+        <div class="toggle-block" id="publishBlock">
+          <div class="toggle-title center">MQTT Parameters</div>
+          <div class="connection-grid">
+            <input class="wide" id="team" placeholder="Team Namespace" value="">
+            <input id="mhost" placeholder="MQTT Host" value="broker.hivemq.com">
+            <input id="mport" placeholder="Port" value="8884">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-container">
+      <div>
+        <div class="log-box">
+          <div class="log-title">📝 Input Stream</div>
+          <div id="inputLog" class="log-body" style="white-space:pre-wrap;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="log-box">
+          <div class="log-title">🔎 Translator Output</div>
+          <div id="aiOutput" class="log-body" style="white-space:pre-wrap;"></div>
+        </div>
+        <div class="footer" style="margin-top:12px;">
+          <p>Built with ❤️ by Stylor Academy Team</p>
+        </div>
+      </div>
+      <div>
+        <div class="log-box">
+          <div class="log-title">📡 Device Communication</div>
+          <div id="log" class="log-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// --- Element References ---
+const el = {
+  statusHint: document.getElementById('statusHint'),
+  log: document.getElementById('log'),
+  aiOutput: document.getElementById('aiOutput'),
+  inputLog: document.getElementById('inputLog'),
+  pipelineHint: document.getElementById('pipelineHint'),
+  translateToggle: document.getElementById('toggleTranslate'),
+  publishToggle: document.getElementById('togglePublish'),
+  translateWrap: document.getElementById('translateWrap'),
+  publishWrap: document.getElementById('publishWrap'),
+  team: document.getElementById('team'),
+  text: document.getElementById('text'),
+  mhost: document.getElementById('mhost'),
+  mport: document.getElementById('mport'),
+  voiceBtn: document.getElementById('voiceBtn'),
+  sendBtn: document.getElementById('send'),
+  beatDot: document.getElementById('beatDot'),
+};
+
+// --- State Variables ---
+let client = null, topicCmd = "", topicEvt = "";
+let lastHeartbeat = 0, lastCommandSentTime = 0, lastDeviceResponseTime = 0;
+let isListening = false, recognition, beatTimer;
+
+// --- Logging & UI Functions ---
+function logDevice(line, type = 'in') {
+  if(!el.log) return;
+  const d=document.createElement('div');
+  d.className=type;
+  d.innerHTML=line;
+  el.log.appendChild(d);
+  el.log.scrollTop=el.log.scrollHeight;
+}
+function logInput(line, type = 'out') {
+  if(!el.inputLog) return;
+  const d=document.createElement('div');
+  d.className=type;
+  d.innerHTML=line;
+  el.inputLog.appendChild(d);
+  el.inputLog.scrollTop = el.inputLog.scrollHeight;
+}
+function setStatus(txt, hint, level) {
+  if(el.statusHint) el.statusHint.textContent=hint||'';
+  const wrap = el.publishWrap;
+  if(!wrap) return;
+  wrap.classList.remove('connecting','connected');
+  if(level==='ok'){
+    wrap.classList.add('connected');
+    fadeSetLabel(wrap,'ONLINE');
+  } else if(level==='warn'){
+    wrap.classList.add('connecting');
+    fadeSetLabel(wrap,'WAIT');
+  } else {
+    fadeSetLabel(wrap, el.publishToggle?.checked ? 'ON' : 'OFF');
+  }
+}
+function fadeSetLabel(wrap,text){
+  if(!wrap) return;
+  const c=wrap.querySelector('.label-center');
+  if(!c || c.textContent===text) return;
+  c.style.opacity='0';
+  setTimeout(()=>{ c.textContent=text; c.style.opacity='1'; },240);
+}
+function flashBeat(){
+  if(!el.beatDot) return;
+  el.beatDot.classList.add('on');
+  clearTimeout(beatTimer);
+  beatTimer = setTimeout(()=> el.beatDot.classList.remove('on'), 700);
+}
+function clearBeat(){
+  if(!el.beatDot) return;
+  el.beatDot.classList.remove('on');
+}
+
+function updatePipelineHint(){
+  const doTranslate = !!el.translateToggle?.checked;
+  const doPublish = !!el.publishToggle?.checked;
+
+  if(el.pipelineHint){
+    let msg = '';
+    if(doTranslate && doPublish){
+      msg = 'กระบวนการ: แปลด้วย app.py แล้วส่งผ่าน MQTT';
+    } else if(doTranslate){
+      msg = 'กระบวนการ: แปลด้วย app.py เท่านั้น (ไม่ส่ง MQTT)';
+    } else if(doPublish){
+      msg = 'กระบวนการ: ส่งข้อความดิบผ่าน MQTT โดยตรง';
+    } else {
+      msg = 'กระบวนการ: ยังไม่ทำงาน กรุณาเปิดใช้งานอย่างน้อยหนึ่งโหมด';
+    }
+    if(doPublish){
+      msg += ' • MQTT ' + (client && client.connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...');
+    }
+    el.pipelineHint.textContent = msg;
+  }
+
+  fadeSetLabel(el.translateWrap, doTranslate ? 'ON' : 'OFF');
+  if(!doPublish){
+    fadeSetLabel(el.publishWrap, 'OFF');
+  } else if(client && client.connected){
+    fadeSetLabel(el.publishWrap,'ONLINE');
+  }
+}
+
+function handlePublishToggle(){
+  if(el.publishToggle?.checked){
+    mqttConnect();
+  } else {
+    mqttDisconnect();
+  }
+  updatePipelineHint();
+}
+
+// --- Persistent Settings ---
+['mhost','mport','team'].forEach(id=>{
+  const f=document.getElementById(id);
+  if(!f) return;
+  const k='gigo_'+id;
+  const v=localStorage.getItem(k);
+  if(v) {
+    f.value = v;
+  } else if(id === 'team') {
+    const generated = 'nlbot/TEAM-' + Math.random().toString(16).slice(2,6).toUpperCase();
+    f.value = generated;
+    try{ localStorage.setItem(k, generated); }catch(e){}
+  }
+  const save = ()=>{ try{ localStorage.setItem(k, f.value); }catch(e){} };
+  f.addEventListener('change', save);
+  f.addEventListener('input', save);
+  f.addEventListener('blur', save);
+});
+
+// --- MQTT Functions ---
+function mqttConnect(){
+  if(client && client.connected) return;
+  lastHeartbeat = lastCommandSentTime = lastDeviceResponseTime = 0;
+  const host = el.mhost.value.trim();
+  const port = el.mport.value.trim();
+  const team = el.team.value.trim();
+  topicCmd = `${team}/cmd`;
+  topicEvt = `${team}/evt`;
+  const url = `wss://${host}:${port}/mqtt`;
+  if(client) client.end(true);
+  client = mqtt.connect(url, { reconnectPeriod: 1500, clean: true, clientId: 'web-'+Math.random().toString(16).slice(2) });
+  setStatus('Connecting...','กำลังเชื่อมต่อ','warn');
+  if(el.publishToggle) el.publishToggle.checked = true;
+
+  client.on('connect', ()=>{
+    logDevice(`<i>Subscribed to <span class='mono'>${topicEvt}</span></i>`);
+    client.subscribe(topicEvt);
+    setStatus('อุปกรณ์ออนไลน์','เชื่อมต่อเรียบร้อย','ok');
+    updatePipelineHint();
+  });
+
+  client.on('message', (t,p)=>{
+    lastDeviceResponseTime = Date.now();
+    const raw = (typeof p === 'string') ? p : new TextDecoder().decode(p);
+    const s = raw.trim();
+
+    // Heartbeat: blink the dot and DO NOT log
+    if (s.indexOf('SYS heartbeat') === 0) {
+      lastHeartbeat = Date.now();
+      flashBeat();
+      return;
+    }
+
+    if(s.indexOf('SYS bridge online') !== -1) logDevice(`<div class='hint'>💡 ESP32 รีบูต</div>`);
+    logDevice(`<span class='in'>← ${s}</span>`);
+  });
+
+  client.on('close', ()=>{
+    if(el.publishToggle) el.publishToggle.checked=false;
+    setStatus('Disconnected','การเชื่อมต่อถูกตัด','bad');
+    clearBeat();
+    client=null;
+    updatePipelineHint();
+  });
+
+  client.on('error', e=>{
+    console.error(e);
+    if(el.publishToggle) el.publishToggle.checked=false;
+    setStatus('MQTT error','ตรวจสอบ Console Log','bad');
+    clearBeat();
+    updatePipelineHint();
+  });
+}
+function mqttDisconnect(){
+  if(client){ client.end(true); client=null; }
+  setStatus('Disconnected','การเชื่อมต่อถูกยกเลิก','bad');
+  clearBeat();
+  updatePipelineHint();
+}
+
+// --- Heartbeat / Status Engine ---
+setInterval(()=>{
+  if(!client || !client.connected){
+    setStatus('ไม่ได้เชื่อมต่อ','', 'bad');
+    lastHeartbeat=0;
+    return;
+  }
+  if(lastHeartbeat===0){
+    setStatus('รออุปกรณ์...','', 'warn');
+    return;
+  }
+  const age=(Date.now()-lastHeartbeat)/1000;
+  if(age<6){
+    setStatus('อุปกรณ์ออนไลน์','พร้อมใช้งาน','ok');
+  } else if(age<15){
+    setStatus('ไม่เสถียร','ไม่ได้รับ heartbeat สักพัก','warn');
+  } else {
+    setStatus('ออฟไลน์','ตรวจสอบอุปกรณ์','bad');
+  }
+},1000);
+
+// --- Command Publishing ---
+function publishCmd(line){
+  if(!client || !client.connected){
+    logInput(`(pending MQTT) → ${line}`);
+    return;
+  }
+  client.publish(topicCmd, line+"\n", { qos: 1 });
+  lastCommandSentTime = Date.now();
+  logInput(`→ ${line}`);
+}
+
+// --- Natural Language Processing ---
+async function sendNaturalLanguage(text){
+  const phrase = (text || '').trim();
+  if(!phrase) return;
+
+  logInput(`<span class='in'>📝 ${phrase}</span>`, 'in');
+  el.sendBtn.disabled=true;
+  el.text.disabled=true;
+
+  const doTranslate = !!el.translateToggle?.checked;
+  const doPublish = !!el.publishToggle?.checked;
+  const isConnected = !!client && client.connected;
+
+  let commands = [];
+  let translatorFailed = false;
+
+  if(doTranslate){
+    logInput('<i>เปิดโหมดแปลภาษา — กำลังเรียกใช้ app.py...</i>');
+    if(el.statusHint) el.statusHint.textContent = 'กำลังเรียกตัวแปลภาษา...';
+    try{
+      const resp = await fetch('http://127.0.0.1:8787/translate',{
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: phrase })
+      });
+      if(!resp.ok){ throw new Error(`HTTP ${resp.status}`); }
+      const data = await resp.json();
+      if(data.error){ logInput(`<div class="hint">ตัวแปลรายงานข้อผิดพลาด: ${data.error}</div>`); }
+      commands = (data.commands||[]).map(s=>s.toString().trim()).filter(Boolean);
+      try{ el.aiOutput.textContent = JSON.stringify(commands.length ? commands : data,null,2); }catch(e){}
+    }catch(e){
+      console.error('[translator] error', e);
+      logInput(`<div class="hint">เรียกตัวแปลไม่สำเร็จ: ${e.message || e}</div>`);
+      translatorFailed = true;
+      try{ el.aiOutput.textContent = 'Translator error'; }catch(_){}
+    }finally{
+      if(el.statusHint) el.statusHint.textContent = '';
+    }
+  } else {
+    const rawParts = phrase.split(/\r?\n|[;,]+/).map(s=>s.trim()).filter(Boolean);
+    commands = rawParts.length ? rawParts : [phrase];
+    try{ el.aiOutput.textContent = JSON.stringify(commands,null,2); }catch(e){}
+    logInput(`<i>ปิดโหมดแปลภาษา — ใช้คำสั่งดิบ ${commands.length} รายการ</i>`);
+  }
+
+  if(translatorFailed){
+    el.sendBtn.disabled=false;
+    el.text.disabled=false;
+    return;
+  }
+
+  if(commands.length === 0){
+    logInput('<div class="hint">ไม่มีคำสั่งที่สร้างได้</div>');
+    el.sendBtn.disabled=false;
+    el.text.disabled=false;
+    return;
+  }
+
+  if(doPublish && (!client || !client.connected)){
+    mqttConnect();
+  }
+
+  if(doPublish){
+    if(!isConnected){
+      logInput('<div class="hint">เปิดการส่ง MQTT แล้วแต่ยังไม่ได้เชื่อมต่อ broker</div>');
+      commands.forEach(c=>logInput(`(queued) → ${c}`));
+    } else {
+      for(const c of commands){
+        publishCmd(c);
+        let waitMs = 1000;
+        if(c.indexOf(':') !== -1){
+          const seg = parseFloat(c.split(':')[1]);
+          if(!Number.isNaN(seg)) waitMs = (seg*1000) + 400;
+        }
+        await new Promise(r=>setTimeout(r,waitMs));
+      }
+    }
+  } else {
+    logInput('<div class="hint">ปิดการส่ง MQTT — ไม่ได้ส่งคำสั่ง</div>');
+  }
+
+  logInput('✅ กระบวนการเสร็จสมบูรณ์','in');
+  el.text.value='';
+  el.sendBtn.disabled=false;
+  el.text.disabled=false;
+}
+
+if(el.sendBtn) el.sendBtn.addEventListener('click', ()=>sendNaturalLanguage(el.text.value));
+if(el.text) el.text.addEventListener('keydown', e=>{ if(e.key==='Enter') sendNaturalLanguage(el.text.value) });
+
+// --- Voice Command (Basic) ---
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
+  recognition.lang = 'th-TH';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => { isListening = true; el.voiceBtn.textContent = '⏹️'; el.voiceBtn.disabled = false; };
+  recognition.onend = () => { isListening = false; el.voiceBtn.textContent = '🎤'; el.voiceBtn.disabled = false; };
+  recognition.onresult = (ev) => { const transcript = ev.results[0][0].transcript; el.text.value = transcript; sendNaturalLanguage(transcript); };
+  recognition.onerror = (e) => { console.error(e); }
+}
+if(el.voiceBtn) el.voiceBtn.addEventListener('click', ()=>{ if(isListening){ recognition.stop(); } else { recognition.start(); } });
+
+if(el.translateToggle) el.translateToggle.addEventListener('change', updatePipelineHint);
+if(el.publishToggle) el.publishToggle.addEventListener('change', handlePublishToggle);
+updatePipelineHint();
+
+// Clear screen button
+const clearBtn = document.getElementById('clearScreen');
+function clearScreen(){
+  if(el.inputLog) el.inputLog.innerHTML='';
+  if(el.aiOutput) el.aiOutput.innerHTML='';
+  if(el.log) el.log.innerHTML='';
+  if(el.statusHint) el.statusHint.textContent = '';
+  updatePipelineHint();
+}
+if(clearBtn) clearBtn.addEventListener('click', clearScreen);
+</script>
+</body>
+</html>

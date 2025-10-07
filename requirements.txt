@@ -1,0 +1,5 @@
+# Requirements for the project
+flask
+flask-cors
+openai
+python-dotenv
