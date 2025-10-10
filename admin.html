@@ -32,7 +32,7 @@
     .page-wrapper{ width:min(1180px,100%); margin:0 auto; padding:48px 24px 56px; }
     @media (max-width:576px){ .page-wrapper{ padding:32px 16px 40px; } }
 
-    .glass-card{ background:var(--surface-glass); border-radius:20px; border:1px solid var(--border-glass); box-shadow:0 28px 48px -36px rgba(15,23,42,0.8); backdrop-filter:blur(12px); position:relative; }
+    .glass-card{ background:var(--surface-glass); border-radius:20px; border:1px solid var(--border-glass); box-shadow:0 28px 48px -36px rgba(15,23,42,0.8); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); position:relative; }
     .hero-card{ background:linear-gradient(135deg, rgba(79,70,229,0.95), rgba(14,165,233,0.9)); color:#f8fafc; overflow:hidden; }
     .hero-card::after{ content:''; position:absolute; inset:0; background:radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 55%); opacity:0.6; }
     .hero-inner{ position:relative; z-index:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:32px; }
@@ -118,6 +118,7 @@
     .log-entry.hidden{ display:none !important; }
 
     .main-layout{ display:flex; flex-direction:column; gap:28px; }
+    .main-layout.hidden{ display:none; }
     @media (max-width:991px){ .team-status-list{ max-height:40vh; } .log-container{ min-height:40vh; max-height:none; } }
     @media (max-width:576px){
       .hero-inner{ padding:24px; } .hero-visual{ display:none; }
@@ -167,7 +168,7 @@
       </div>
     </section>
 
-    <main id="dashboard-section" class="main-layout" style="display:none;">
+    <main id="dashboard-section" class="main-layout hidden">
       <div class="row g-3">
         <div class="col-12 col-md-4">
           <div class="stat-card total">
@@ -365,7 +366,7 @@
       client = mqtt.connect(brokerUrl);
       client.on('connect', () => {
         configSection.style.display = 'none';
-        dashboardSection.style.display = 'flex';
+        dashboardSection.classList.remove('hidden');
         showAllBtn.style.display = 'inline-flex';
         const adminTopic = `${rootTopic}/#`;
         subscribedTopicDisplay.textContent = adminTopic;
