@@ -1,4 +1,19 @@
 // =================================================================
+// MQTT-Controlled Robot for BBC Micro:bit + ESP32
+// =================================================================
+// Architecture:
+//   1. Configuration - WiFi/MQTT settings (EDIT THIS SECTION)
+//   2. Motor Control - Hardware interface
+//   3. Communication - MQTT messaging
+//   4. Button Controls - User interface
+//   5. Command Processing - Parse & validate commands
+//   6. Command Execution - Execute & monitor commands
+//   7. Main Loop - Orchestration
+//
+// To add new command: Update Section 5 (registry) & Section 6 (execution)
+// =================================================================
+
+// =================================================================
 // --- 1. ส่วนตั้งค่าหลัก (แก้ไขเฉพาะส่วนนี้สำหรับหุ่นยนต์แต่ละตัว) ---
 // =================================================================
 
@@ -26,27 +41,35 @@ let US_TRIG = DigitalPin.P16
 let US_ECHO = DigitalPin.P0
 let STOP_DISTANCE_CM = 15
 
+// Motor timing compensation
+let MOTOR_SPINUP_MS = 150  // Calibrate: time for motor to reach full speed
+
 // =================================================================
 // --- 2. ฟังก์ชันควบคุมมอเตอร์และเซ็นเซอร์ (ไม่ต้องแก้ไข) ---
 // =================================================================
 
 function turnLeft(pwm: number) {
+    basic.showArrow(ArrowNames.East)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorB, pwm, 1)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorC, pwm, 1)
 }
 function backward(pwm: number) {
+    basic.showArrow(ArrowNames.North)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorB, pwm, 0)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorC, pwm, 1)
 }
 function turnRight(pwm: number) {
+    basic.showArrow(ArrowNames.West)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorB, pwm, 0)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorC, pwm, 0)
 }
 function forward(pwm: number) {
+    basic.showArrow(ArrowNames.South)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorB, pwm, 1)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorC, pwm, 0)
 }
 function halt() {
+    basic.clearScreen()
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorB, 0, 0)
     RoboticsWorkshop.DDMmotor2(MotorChannel.MotorC, 0, 0)
 }
@@ -65,7 +88,7 @@ function startsWith(s: string, prefix: string): boolean {
 }
 
 // =================================================================
-// --- 3. ฟังก์ชันสื่อสารกับ ESP32 (Command-based) ---
+// --- 3. Communication Layer (ESP32 & MQTT) ---
 // =================================================================
 
 // ตัวแปรสถานะ
@@ -73,25 +96,30 @@ let isConnected = false
 let activeCommand = ""
 let cmdQueue: string[] = []
 let endTimeMs = 0
+let stopRequested = false
 
-// ฟังก์ชันเหล่านี้จะสร้าง "คำสั่ง PUB" ให้ ESP32 นำไป Publish
+// ฟังก์ชันส่งข้อความกลับผ่าน MQTT
+function publishEvent(eventType: string, message: string) {
+    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} ${eventType} ${message}`)
+}
+
 function done(x: string) {
-    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} DONE ${x}`)
+    publishEvent("DONE", x)
 }
 function ack(x: string) {
-    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} ACK ${x}`)
+    publishEvent("ACK", x)
 }
 function warn(x: string) {
-    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} ${x}`)
+    publishEvent("WARN", x)
 }
 function dist(cm: number) {
-    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} DIST ${cm}`)
+    publishEvent("DIST", `${cm}`)
 }
 function sys(msg: string) {
-    if (isConnected) serial.writeLine(`PUB ${MY_EVT_TOPIC} SYS ${msg}`)
+    publishEvent("SYS", msg)
 }
 function heartbeat() {
-    if (isConnected) sys(`heartbeat ${input.runningTime()}`)
+    sys(`heartbeat ${input.runningTime()}`)
 }
 
 // =================================================================
@@ -186,44 +214,75 @@ MQTT.onEsp32DataReceived(function (raw) {
 })
 
 // =================================================================
-// --- 5. การประมวลผลคำสั่ง และการทำงานหลัก ---
+// --- 5. Command Processing Layer ---
 // =================================================================
 
-function parseAndQueue(line: string) {
-    const s = line.trim()
-    if (!s) { return }
+// Command registry - เพิ่มคำสั่งใหม่ที่นี่
+function isTimedCommand(cmdName: string): boolean {
+    return ["FWD", "BWD", "LEFT", "RIGHT"].indexOf(cmdName) >= 0
+}
 
-    if (startsWith(s, "STOP")) {
+function isImmediateCommand(cmdName: string): boolean {
+    return cmdName == "STOP" || cmdName == "DIST?"
+}
+
+function isValidCommand(cmdName: string): boolean {
+    return isTimedCommand(cmdName) || isImmediateCommand(cmdName)
+}
+
+function requiresObstacleCheck(cmdName: string): boolean {
+    return cmdName == "FWD"
+}
+
+// Execute immediate commands (ไม่เข้าคิว)
+function executeImmediateCommand(cmdName: string) {
+    if (cmdName == "STOP") {
+        stopRequested = true
         halt()
         cmdQueue = []
         activeCommand = ""
         ack("STOP")
         done("STOP")
-        return
-    }
-
-    if (startsWith(s, "DIST?")) {
+    } else if (cmdName == "DIST?") {
         let cm = getDistanceCm()
         dist(cm)
-        return
     }
+}
 
-    let op = s
-    let sec = 1
+// Parse incoming command string
+function parseAndQueue(line: string) {
+    const s = line.trim()
+    if (!s) { return }
+
+    // Extract command name and duration
     let parts = s.split(":")
+    let cmdName = parts[0]
+    let duration = 1
+
     if (parts.length > 1) {
-        let v = parseFloat(parts[1])
-        if (!(isNaN(v))) { sec = v }
-        op = parts[0]
+        let parsedDuration = parseFloat(parts[1])
+        if (!isNaN(parsedDuration)) {
+            duration = parsedDuration
+        }
     }
 
-    if (["FWD", "BWD", "LEFT", "RIGHT"].indexOf(op) < 0) {
-        warn(`WARN unknown ${s}`)
+    // Validate command
+    if (!isValidCommand(cmdName)) {
+        warn(`unknown ${s}`)
         return
     }
 
-    ack(s)
-    cmdQueue.push(`${op}:${sec}`)
+    // Handle immediate commands
+    if (isImmediateCommand(cmdName)) {
+        executeImmediateCommand(cmdName)
+        return
+    }
+
+    // Queue timed commands
+    if (isTimedCommand(cmdName)) {
+        ack(s)
+        cmdQueue.push(`${cmdName}:${duration}`)
+    }
 }
 
 // --- ส่วนของการเริ่มต้น ---
@@ -235,73 +294,106 @@ serial.redirect(
 halt()
 basic.showString("A")
 
+// =================================================================
+// --- 6. Command Execution Functions ---
+// =================================================================
+
+function executeCommand(cmdName: string, duration: number) {
+    if (cmdName == "FWD") {
+        forward(drivePwm)
+    } else if (cmdName == "BWD") {
+        backward(drivePwm)
+    } else if (cmdName == "LEFT") {
+        turnLeft(TURN_PPM)
+    } else if (cmdName == "RIGHT") {
+        turnRight(TURN_PPM)
+    }
+
+    // Set end time - add spinup compensation for accurate movement duration
+    if (duration > 0) {
+        endTimeMs = input.runningTime() + duration * 1000 + MOTOR_SPINUP_MS
+    } else {
+        endTimeMs = 2147483647
+    }
+}
+
+function checkObstacleDetection(): boolean {
+    if (activeCommand && requiresObstacleCheck(activeCommand.split(":")[0])) {
+        let distance = getDistanceCm()
+        if (distance > 0 && distance < STOP_DISTANCE_CM) {
+            halt()
+            warn(`OBSTACLE at ${distance}cm`)
+            basic.pause(50)
+            done(activeCommand)
+            activeCommand = ""
+            cmdQueue = []
+            basic.showIcon(IconNames.No)
+            basic.pause(500)
+            basic.clearScreen()
+            return true
+        }
+    }
+    return false
+}
+
+function checkCommandTimeout(): boolean {
+    if (input.runningTime() >= endTimeMs) {
+        halt()
+        done(activeCommand)
+        activeCommand = ""
+        return true
+    }
+    return false
+}
+
+function processNextCommand() {
+    if (cmdQueue.length == 0) return
+
+    let cmd = cmdQueue.shift()
+    if (!cmd) return
+
+    let parts = cmd.split(":")
+    let cmdName = parts[0]
+    let duration = parseFloat(parts[1])
+
+    activeCommand = cmd
+    executeCommand(cmdName, duration)
+}
+
+// =================================================================
+// --- 7. Main Loop (Execution Engine) ---
+// =================================================================
+
 // --- Runner (ลูปการทำงานหลัก) ---
 basic.forever(function () {
-    // ส่ง Heartbeat ทุก 4 วินาที
+    // Priority 1: Handle STOP request immediately
+    if (stopRequested) {
+        stopRequested = false
+        halt()
+        cmdQueue = []
+        activeCommand = ""
+        return
+    }
+
+    // Priority 2: Send heartbeat
     if (input.runningTime() % 4000 < 50) {
         heartbeat()
     }
 
-    // จัดการคำสั่งที่กำลังทำงาน
+    // Priority 3: Monitor active command
     if (activeCommand) {
-        // ตรวจสอบสิ่งกีดขวาง
-        if (activeCommand.includes("FWD")) {
-            let distance = getDistanceCm()
-            if (distance > 0 && distance < STOP_DISTANCE_CM) {
-                halt()
-                warn(`WARN OBSTACLE at ${distance}cm`)
-                basic.pause(50)
-                done(activeCommand)
-                activeCommand = ""
-                cmdQueue = []
-                basic.showIcon(IconNames.No)
-                basic.pause(500)
-                basic.clearScreen()
-                return
-            }
+        // Check for obstacles
+        if (checkObstacleDetection()) {
+            return
         }
 
-        // ตรวจสอบหมดเวลา
-        if (input.runningTime() >= endTimeMs) {
-            halt()
-            done(activeCommand)
-            activeCommand = ""
-            basic.clearScreen()
+        // Check if command is complete
+        if (checkCommandTimeout()) {
+            // Command completed, will process next in next iteration
         }
         return
     }
 
-    // ดึงคำสั่งใหม่จากคิวมาทำงาน
-    if (cmdQueue.length > 0) {
-        let cmd = cmdQueue.shift()
-        if (cmd) {
-            let parts = cmd.split(":")
-            let op = parts[0]
-            let sec = parseFloat(parts[1])
-
-            if (sec > 0) {
-                endTimeMs = input.runningTime() + sec * 1000
-            } else {
-                endTimeMs = 2147483647 // เวลาสูงสุดที่เป็นไปได้ (เหมือนไม่มีที่สิ้นสุด)
-            }
-
-            activeCommand = cmd
-            if (op == "FWD") {
-                basic.showArrow(ArrowNames.South)
-                forward(drivePwm)
-            } else if (op == "BWD") {
-                basic.showArrow(ArrowNames.North)
-                backward(drivePwm)
-            } else if (op == "LEFT") {
-                basic.showArrow(ArrowNames.East)
-                turnLeft(TURN_PPM)
-            } else if (op == "RIGHT") {
-                basic.showArrow(ArrowNames.West)
-                turnRight(TURN_PPM)
-            } else {
-                halt()
-                activeCommand = ""
-            }
-        }
-    }
+    // Priority 4: Execute next command from queue
+    processNextCommand()
 })
