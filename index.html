@@ -137,12 +137,20 @@
     .beat-indicator { display:flex; align-items:center; gap:8px; margin-top:8px; }
     .beat-dot { width:10px; height:10px; border-radius:50%; background:#d1d5db; transition: transform .15s, background .15s; }
     .beat-dot.on { background:#22c55e; transform: scale(1.35); }
+
+    /* Site title / logo */
+    .site-title { display:flex; align-items:center; gap:14px; margin:0; }
+    .logo { height:48px; width:auto; display:block; }
+    .site-title-text { font-size:30px; font-weight:800; color:#f8fafc; text-shadow: 0 4px 18px rgba(15,23,42,0.32); margin:0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🧠 Natural Language Command Center</h1>
+      <h1 class="site-title">
+        <img src="/static/images/logo.svg" alt="Stylor Academy" class="logo" />
+        <span class="site-title-text">Natural Language Command Center</span>
+      </h1>
       <p>Advanced Natural Language Robot Control Interface</p>
     </div>
 
