@@ -139,9 +139,10 @@
     .beat-dot.on { background:#22c55e; transform: scale(1.35); }
 
     /* Site title / logo */
-    .site-title { display:flex; align-items:center; gap:14px; margin:0; }
-    .logo { height:48px; width:auto; display:block; }
-    .site-title-text { font-size:30px; font-weight:800; color:#f8fafc; text-shadow: 0 4px 18px rgba(15,23,42,0.32); margin:0; }
+  .site-title { display:flex; align-items:center; gap:14px; margin:0; }
+  .logo { height:48px; width:auto; display:block; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); -webkit-filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); transition: transform .15s ease, filter .15s ease; }
+  .logo:hover { transform: translateY(-2px); filter: drop-shadow(0 10px 18px rgba(0,0,0,0.32)); -webkit-filter: drop-shadow(0 10px 18px rgba(0,0,0,0.32)); }
+  .site-title-text { font-size:30px; font-weight:800; color:#f8fafc; text-shadow: 0 4px 18px rgba(15,23,42,0.32); margin:0; }
   </style>
 </head>
 <body>
