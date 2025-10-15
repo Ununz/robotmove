@@ -17,7 +17,7 @@
 <body>
   <div class="page-wrapper">
     <!-- ... ส่วน Header, Config, Stats เหมือนเดิม ... -->
-    <header class="glass-card hero-card mb-4"> <div class="hero-inner"> <div class="d-flex flex-column gap-3"> <h1 class="hero-title">Teacher's Professional Dashboard</h1> <p class="hero-subtitle" id="mqtt-status">Please configure and connect.</p> <div class="hero-badge" id="connection-badge"> <span class="badge-indicator" id="connection-indicator"></span> <span class="badge-label" id="connection-badge-label">Waiting for connection</span> </div> </div> <div class="hero-visual"><i class="bi-broadcast-pin"></i></div> </div> </header> <section id="config-section" class="glass-card mb-4"> <div class="section-heading mb-3"> <h2 class="section-title mb-1">Connection Settings</h2> <p class="section-subtitle">Enter broker details to begin listening to team activity.</p> </div> <div class="row g-3 align-items-end"> <div class="col-12 col-lg-6"> <label for="broker-url" class="form-label">MQTT Broker URL</label> <input type="text" class="form-control form-control-lg" id="broker-url" value="wss://broker.hivemq.com:8884/mqtt"> </div> <div class="col-12 col-lg-4"> <label for="root-topic" class="form-label">Root Topic</label> <input type="text" class="form-control form-control-lg" id="root-topic" value="nlbot"> </div> <div class="col-12 col-lg-2 d-grid"> <button id="connect-btn" class="btn btn-gradient py-3">Connect</button> </div> </div> </section> <main id="dashboard-section" class="main-layout hidden">
+    <header class="glass-card hero-card mb-4"> <div class="hero-inner"> <div class="d-flex flex-column gap-3"> <h1 class="hero-title">Teacher's Professional Dashboard</h1> <p class="hero-subtitle" id="mqtt-status">Please configure and connect.</p> <div class="hero-badge" id="connection-badge"> <span class="badge-indicator" id="connection-indicator"></span> <span class="badge-label" id="connection-badge-label">Waiting for connection</span> </div> </div> <div class="hero-visual"><i class="bi-broadcast-pin"></i></div> </div> </header> <section id="config-section" class="glass-card mb-4"> <div class="section-heading mb-3"> <h2 class="section-title mb-1">Connection Settings</h2> <p class="section-subtitle">Enter broker details to begin listening to team activity.</p> </div> <div class="row g-3 align-items-end"> <div class="col-12 col-lg-6"> <label for="broker-url" class="form-label">MQTT Broker URL</label> <input type="text" class="form-control form-control-lg" id="broker-url" value="wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt"> </div> <div class="col-12 col-lg-4"> <label for="root-topic" class="form-label">Root Topic</label> <input type="text" class="form-control form-control-lg" id="root-topic" value="nlbot"> </div> <div class="col-12 col-lg-3"> <label for="mqtt-username" class="form-label">Username</label> <input type="text" class="form-control form-control-lg" id="mqtt-username" value="teacher"> </div> <div class="col-12 col-lg-3"> <label for="mqtt-password" class="form-label">Password</label> <input type="password" class="form-control form-control-lg" id="mqtt-password" value="Stylor123"> </div> <div class="col-12 col-lg-2 d-grid"> <button id="connect-btn" class="btn btn-gradient py-3">Connect</button> </div> </div> </section> <main id="dashboard-section" class="main-layout hidden">
   <div class="row g-4 align-items-start">
     <div class="col-12 col-lg-4 d-flex flex-column gap-4 team-column">
       <div class="glass-card broadcast-card">
@@ -108,7 +108,7 @@
         dashboardSection = document.getElementById('dashboard-section');
   const connectBtn = document.getElementById('connect-btn'),
         showAllBtn = document.getElementById('show-all-btn');
-  const brokerUrlInput = document.getElementById('broker-url'),
+  const brokerUrlInput = document.getElementById('broker-url'), mqttUsernameInput = document.getElementById('mqtt-username'), mqttPasswordInput = document.getElementById('mqtt-password'),
         rootTopicInput = document.getElementById('root-topic');
   const logContainer = document.getElementById('log-container'),
         teamStatusContainer = document.getElementById('team-status-container');
@@ -144,6 +144,8 @@
   connectBtn.addEventListener('click', () => {
     const brokerUrl = brokerUrlInput.value.trim();
     const rootTopic = rootTopicInput.value.trim();
+    const username = mqttUsernameInput.value.trim();
+    const password = mqttPasswordInput.value;
     if (!brokerUrl || !rootTopic) { alert("Broker URL and Root Topic cannot be empty."); return; }
     connectBtn.disabled = true;
     connectBtn.textContent = 'Connecting...';
@@ -152,7 +154,7 @@
     if (connectionBadge) { connectionBadge.classList.remove('is-online'); connectionBadge.classList.add('is-connecting'); }
     if (connectionBadgeLabel) { connectionBadgeLabel.textContent = 'Connecting...'; }
     if (connectionIndicator) { connectionIndicator.classList.add('pulse'); }
-    initializeMqtt(brokerUrl, rootTopic);
+    initializeMqtt(brokerUrl, rootTopic, username, password);
   });
 
   showAllBtn.addEventListener('click', () => {
@@ -195,8 +197,39 @@
       specificCommandModal.hide();
   });
 
-  function initializeMqtt(brokerUrl, rootTopic) {
-      client = mqtt.connect(brokerUrl);
+  function initializeMqtt(brokerUrl, rootTopic, username, password) {
+      console.log('Connecting to:', brokerUrl);
+      let parsed;
+      try {
+        parsed = new URL(brokerUrl);
+      } catch (err) {
+        console.error('Invalid broker URL:', err);
+        mqttStatus.textContent = 'Invalid broker URL';
+        return;
+      }
+
+      const isSecureWs = parsed.protocol === 'wss:';
+      const connectionOptions = {
+        protocol: parsed.protocol.replace(':', ''),
+        host: parsed.hostname,
+        hostname: parsed.hostname,
+        port: parsed.port ? Number(parsed.port) : (isSecureWs ? 443 : 80),
+        path: parsed.pathname && parsed.pathname !== '/' ? parsed.pathname + parsed.search : '/mqtt',
+        reconnectPeriod: 1500,
+        clean: true,
+        clientId: 'admin-' + Math.random().toString(16).slice(2),
+        keepalive: 60,
+        protocolVersion: 5,
+        rejectUnauthorized: true
+      };
+
+      if (username && username.trim()) {
+        connectionOptions.username = username.trim();
+        connectionOptions.password = password ? password.trim() : '';
+        console.log('Connecting with username:', connectionOptions.username);
+      }
+
+      client = mqtt.connect(connectionOptions);
       client.on('connect', () => {
         configSection.style.display = 'none';
         dashboardSection.classList.remove('hidden');

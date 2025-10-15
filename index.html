@@ -140,7 +140,7 @@
 
     /* Site title / logo */
   .site-title { display:flex; align-items:center; gap:14px; margin:0; }
-  .logo { height:48px; width:auto; display:block; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); -webkit-filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); transition: transform .15s ease, filter .15s ease; }
+  .logo { height:48px; width:auto; display:block; filter: drop-shadow(0 6px 12px rgba(255,255,255,1)); -webkit-filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); transition: transform .15s ease, filter .15s ease; }
   .logo:hover { transform: translateY(-2px); filter: drop-shadow(0 10px 18px rgba(0,0,0,0.32)); -webkit-filter: drop-shadow(0 10px 18px rgba(0,0,0,0.32)); }
   .site-title-text { font-size:30px; font-weight:800; color:#f8fafc; text-shadow: 0 4px 18px rgba(15,23,42,0.32); margin:0; }
   </style>
@@ -210,8 +210,10 @@
           <div class="toggle-title center">MQTT Parameters</div>
           <div class="connection-grid">
             <input class="wide" id="team" placeholder="Team Namespace" value="">
-            <input id="mhost" placeholder="MQTT Host" value="broker.hivemq.com">
+            <input id="mhost" placeholder="MQTT Host" value="a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud">
             <input id="mport" placeholder="Port" value="8884">
+            <input id="muser" placeholder="Username" value="teacher">
+            <input id="mpass" placeholder="Password" type="password" value="Stylor123">
           </div>
         </div>
       </div>
@@ -258,6 +260,8 @@ const el = {
   text: document.getElementById('text'),
   mhost: document.getElementById('mhost'),
   mport: document.getElementById('mport'),
+  muser: document.getElementById('muser'),
+  mpass: document.getElementById('mpass'),
   voiceBtn: document.getElementById('voiceBtn'),
   sendBtn: document.getElementById('send'),
   beatDot: document.getElementById('beatDot'),
@@ -382,11 +386,25 @@ function mqttConnect(){
   const host = el.mhost.value.trim();
   const port = el.mport.value.trim();
   const team = el.team.value.trim();
+  const username = el.muser ? el.muser.value.trim() : '';
+  const password = el.mpass ? el.mpass.value.trim() : '';
   topicCmd = `${team}/cmd`;
   topicEvt = `${team}/evt`;
   const url = `wss://${host}:${port}/mqtt`;
   if(client) client.end(true);
-  client = mqtt.connect(url, { reconnectPeriod: 1500, clean: true, clientId: 'web-'+Math.random().toString(16).slice(2) });
+  
+  // เพิ่ม username/password ในการเชื่อมต่อ
+  const options = { 
+    reconnectPeriod: 1500, 
+    clean: true, 
+    clientId: 'web-'+Math.random().toString(16).slice(2)
+  };
+  if(username) {
+    options.username = username;
+    options.password = password;
+  }
+  
+  client = mqtt.connect(url, options);
   setStatus('Connecting...','กำลังเชื่อมต่อ','warn');
   if(el.publishToggle) el.publishToggle.checked = true;
 

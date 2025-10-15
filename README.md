@@ -88,6 +88,56 @@ ngrok http 8787
 
 Then send the generated `https://*.ngrok.app` URL to students.
 
+## HiveMQ Cloud setup for dashboards
+
+- **Broker:** `a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud`
+- **Ports:** `8883` (MQTTS) and `8884` (WSS)
+- **Credentials:** username `teacher`, password `Stylor123`
+- **Web clients:** use `wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt`
+
+To connect the instructor dashboard (`admin.html`):
+
+1. Open the file in a browser (or serve the repo via `python -m http.server 8787`).
+2. Ensure the broker URL, username, and password fields match the values above.
+3. Click **Connect**; the badge should flip to “Live monitoring” once authenticated.
+
+If you need to verify connectivity without a browser, activate the virtual environment and run the quick Python check:
+
+```bash
+python - <<'PY'
+import ssl
+import time
+import paho.mqtt.client as mqtt
+
+BROKER = "a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud"
+
+connected = False
+
+client = mqtt.Client(client_id="admin-doc-check", protocol=mqtt.MQTTv5, transport="websockets")
+client.username_pw_set("teacher", "Stylor123")
+client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+
+def on_connect(_client, _userdata, _flags, reason_code, _properties):
+    global connected
+    print("Connected with:", reason_code.getName())
+    connected = True
+    _client.disconnect()
+
+client.on_connect = on_connect
+client.connect(BROKER, 8884, keepalive=60)
+
+start = time.time()
+while not connected and time.time() - start < 10:
+	client.loop(timeout=1.0)
+	time.sleep(0.1)
+
+if not connected:
+	raise SystemExit("Connection failed")
+PY
+```
+
+You should see `Connected with: Success` if the credentials are accepted.
+
 ---
 
 If you want, I can also:

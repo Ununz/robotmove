@@ -3,3 +3,4 @@ flask
 flask-cors
 openai
 python-dotenv
+paho-mqtt
