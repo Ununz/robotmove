@@ -401,7 +401,6 @@
         padding: 18px;
       }
     }
-    }
 
     .section-label {
       font-size: 0.76rem;
@@ -1479,7 +1478,6 @@
         <div class="form-actions">
           <button class="btn btn--primary" type="button" id="connect-btn"><i class="bi bi-link-45deg"></i> Connect</button>
           <button class="btn btn--ghost" type="button" id="disconnect-btn"><i class="bi bi-power"></i> Disconnect</button>
-          <button class="btn btn--accent" type="button" id="test-credentials-btn"><i class="bi bi-play-circle"></i> Test Credentials</button>
         </div>
         <div class="connection-panel__footnote">
           <span id="connection-last-saved">Last saved: never</span>
@@ -1635,7 +1633,6 @@
 
       const connectBtn = document.getElementById('connect-btn');
       const disconnectBtn = document.getElementById('disconnect-btn');
-      const testBtn = document.getElementById('test-credentials-btn');
       const clearBtn = document.getElementById('clear-connection');
       const statusLabel = document.getElementById('connection-status-label');
       const lastSavedLabel = document.getElementById('connection-last-saved');
@@ -1722,11 +1719,6 @@
         document.dispatchEvent(new CustomEvent('mqtt:connect-requested', { detail: saved }));
       }
 
-      function handleTestClick() {
-        const saved = persistConfig();
-        document.dispatchEvent(new CustomEvent('mqtt:config-saved', { detail: saved }));
-      }
-
       function handleDisconnectClick() {
         setStatus('empty', 'Disconnected from broker');
         stopMqttClient();
@@ -1752,12 +1744,6 @@
       if (connectBtn) {
         connectBtn.addEventListener('click', () => {
           handleConnectClick();
-        });
-      }
-
-      if (testBtn) {
-        testBtn.addEventListener('click', () => {
-          handleTestClick();
         });
       }
 
