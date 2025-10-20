@@ -1,418 +1,2705 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- ... ส่วน head และ style เหมือนเดิมทุกประการ ไม่ต้องแก้ไข ... -->
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin Professional Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Command Console</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
-    /* ... CSS ทั้งหมดเหมือนเดิม ... */
-    :root{ --surface-glass: rgba(255,255,255,0.94); --border-glass: rgba(255,255,255,0.45); --brand-primary:#6366f1; --brand-primary-dark:#4f46e5; --brand-accent:#22d3ee; --brand-success:#22c55e; --brand-warn:#f97316; --brand-warn-dark:#db6802; --text-muted:#64748b; --team-list-height:calc(72px * 10); } *{ box-sizing:border-box; } body{ margin:0; font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#0f172a; background: radial-gradient(circle at 15% 20%, rgba(99,102,241,0.28), transparent 55%), radial-gradient(circle at 85% 80%, rgba(45,212,191,0.25), transparent 50%), #eef2ff; min-height:100vh; } .page-wrapper{ width:min(1180px,100%); margin:0 auto; padding:48px 24px 56px; } @media (max-width:576px){ .page-wrapper{ padding:32px 16px 40px; } } .glass-card{ background:var(--surface-glass); border-radius:20px; border:1px solid var(--border-glass); box-shadow:0 28px 48px -36px rgba(15,23,42,0.8); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); position:relative; } .hero-card{ background:linear-gradient(135deg, rgba(79,70,229,0.95), rgba(14,165,233,0.9)); color:#f8fafc; overflow:hidden; } .hero-card::after{ content:''; position:absolute; inset:0; background:radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 55%); opacity:0.6; } .hero-inner{ position:relative; z-index:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:32px; } .hero-title{ font-size:clamp(1.9rem,1.8vw + 1.3rem,2.8rem); font-weight:700; margin:0; } .hero-subtitle{ margin:0; font-size:1rem; opacity:0.9; } .hero-subtitle.status-success{ color:#bbf7d0; opacity:1; font-weight:600; } .hero-visual{ font-size:3.5rem; opacity:0.5; } .hero-badge{ display:inline-flex; align-items:center; gap:10px; padding:10px 18px; border-radius:999px; background:rgba(30,64,175,0.45); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.12em; font-weight:600; transition:background .2s, transform .2s; } .hero-badge .badge-indicator{ width:12px; height:12px; border-radius:50%; background:#f87171; box-shadow:0 0 0 0 rgba(248,113,113,0.6); transition:background .3s, box-shadow .3s; } .hero-badge .badge-label{ color:#f8fafc; } .hero-badge.is-connecting{ background:rgba(59,130,246,0.45); } .hero-badge.is-connecting .badge-indicator{ background:#60a5fa; box-shadow:0 0 0 0 rgba(96,165,250,0.6); } .hero-badge.is-online{ background:rgba(34,197,94,0.4); } .hero-badge.is-online .badge-indicator{ background:var(--brand-success); box-shadow:0 0 0 0 rgba(34,197,94,0.6); } .badge-indicator.pulse{ animation:badgePulse 1.25s ease-in-out infinite; } @keyframes badgePulse{ 0%{ box-shadow:0 0 0 0 rgba(96,165,250,0.6);} 70%{ box-shadow:0 0 0 12px rgba(96,165,250,0);} 100%{ box-shadow:0 0 0 0 rgba(96,165,250,0);} } .section-title{ font-weight:700; font-size:1.1rem; color:#1e293b; } .section-subtitle{ font-size:.95rem; color:var(--text-muted); margin:0; } .section-helper{ font-size:.85rem; color:var(--text-muted); } #config-section{ padding:32px; } #config-section .form-label{ font-size:.75rem; letter-spacing:.1em; font-weight:600; color:var(--text-muted); text-transform:uppercase; } #config-section .form-control{ border-radius:14px; border:1px solid rgba(148,163,184,0.4); padding:.75rem 1rem; transition:border-color .2s, box-shadow .2s; } #config-section .form-control:focus{ border-color:var(--brand-primary); box-shadow:0 0 0 .2rem rgba(99,102,241,0.2); } .btn-gradient{ background:linear-gradient(135deg, var(--brand-primary-dark), var(--brand-primary)); border:none; color:#fff; font-weight:600; border-radius:14px; transition:transform .2s, box-shadow .2s, opacity .2s; } .btn-gradient:hover{ transform:translateY(-1px); box-shadow:0 16px 30px -20px rgba(79,70,229,0.9); } .btn-gradient:disabled{ opacity:.6; transform:none; box-shadow:none; } .stat-card{ display:flex; align-items:center; gap:18px; padding:22px; border-radius:18px; color:#fff; box-shadow:0 18px 38px -28px rgba(15,23,42,0.8); } .stat-card.total{ background:linear-gradient(135deg,#4f46e5,#7c3aed); } .stat-card.active{ background:linear-gradient(135deg,#15803d,#22c55e); } .stat-card.inactive{ background:linear-gradient(135deg,#d97706,#f97316); } .stat-icon{ width:52px; height:52px; border-radius:16px; background:rgba(255,255,255,0.18); display:grid; place-items:center; font-size:1.6rem; } .stat-data{ display:flex; flex-direction:column; gap:4px; } .stat-label{ text-transform:uppercase; font-size:.75rem; letter-spacing:.12em; opacity:.85; } .stat-value{ font-size:2.1rem; font-weight:700; line-height:1; } .team-column,.log-column{ height:100%; } .team-panel{ padding:28px; display:flex; flex-direction:column; gap:16px; height:100%; } .team-metrics{ display:flex; align-items:center; gap:6px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .team-metrics::-webkit-scrollbar{ display:none; } .team-metric{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; border:1px solid rgba(99,102,241,0.2); background:rgba(99,102,241,0.08); font-size:.72rem; line-height:1; white-space:nowrap; } .team-metric.total{ background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.28); } .team-metric.active{ background:rgba(34,197,94,0.14); border-color:rgba(34,197,94,0.28); } .team-metric.inactive{ background:rgba(249,115,22,0.14); border-color:rgba(249,115,22,0.32); } .team-metric .metric-label{ font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; color:var(--text-muted); font-weight:600; } .team-metric .metric-value{ font-size:.95rem; font-weight:700; color:#0f172a; } .team-metric.total .metric-value{ color:var(--brand-primary-dark); } .team-metric.active .metric-value{ color:var(--brand-success); } .team-metric.inactive .metric-value{ color:var(--brand-warn-dark); } .team-status-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; max-height:var(--team-list-height); overflow-y:auto; } .team-status-list li{ background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.14); border-radius:18px; padding:14px 18px; transition:transform .15s, border-color .2s, box-shadow .2s, background .2s; cursor:pointer; } .team-status-list li:hover{ transform:translateY(-1px); border-color:rgba(99,102,241,0.38); box-shadow:0 16px 32px -28px rgba(79,70,229,0.8); background:rgba(99,102,241,0.12); } .team-status-list li.filtered{ background:rgba(99,102,241,0.2); border-color:rgba(99,102,241,0.58); box-shadow:0 18px 36px -28px rgba(79,70,229,0.85); } .team-item{ display:flex; align-items:center; justify-content:space-between; gap:16px; } .team-item-main{ display:flex; align-items:center; gap:14px; } .team-details{ display:flex; flex-direction:column; } .team-name{ font-weight:600; color:#111827; } .last-seen{ font-size:.75rem; color:var(--text-muted); } .team-status-list .status-dot{ width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.6); transition:transform .15s, box-shadow .15s; } .status-active{ background:var(--brand-success); box-shadow:0 0 12px rgba(34,197,94,0.55); } .status-inactive{ background:var(--brand-warn); box-shadow:0 0 12px rgba(249,115,22,0.55); } .status-dot.beat{ transform:scale(1.35); box-shadow:0 0 0 8px rgba(34,197,94,0.18); } .team-status-list .bi-chevron-right{ color:var(--text-muted); font-size:1rem; } .empty-state{ text-align:center; padding:32px 20px; border-radius:18px; border:1px dashed rgba(148,163,184,0.45); background:rgba(148,163,184,0.12); color:var(--text-muted); font-size:.9rem; } .broadcast-card{ padding:28px; display:flex; flex-direction:column; gap:16px; } .broadcast-card .input-group{ border-radius:14px; overflow:hidden; box-shadow:0 14px 32px -28px rgba(15,23,42,0.75); } .broadcast-card .form-control{ border:none; padding:.75rem 1rem; font-weight:500; font-size:.9rem; } .broadcast-card .form-control:focus{ box-shadow:none; } #broadcast-cmd-btn{ background:linear-gradient(135deg, var(--brand-warn-dark), var(--brand-warn)); border:none; color:#fff; font-weight:600; font-size:.95rem; padding:.6rem 1.1rem; transition:transform .2s, box-shadow .2s; } #broadcast-cmd-btn:hover{ transform:translateY(-1px); box-shadow:0 18px 34px -28px rgba(251,191,36,0.9); } .log-panel{ padding:28px; height:100%; display:flex; flex-direction:column; gap:16px; } .log-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; } .log-topic{ font-size:.85rem; color:var(--text-muted); display:inline-block; margin-top:4px; } #show-all-btn{ display:none; background:rgba(99,102,241,0.14); border:1px solid rgba(99,102,241,0.35); color:var(--brand-primary-dark); font-weight:600; border-radius:999px; padding:8px 18px; transition:background .2s, border-color .2s, transform .2s; } #show-all-btn:hover{ background:rgba(99,102,241,0.2); border-color:rgba(99,102,241,0.5); transform:translateY(-1px); } .log-container{ flex:0 0 var(--team-list-height); height:var(--team-list-height); background:#0f172a; border-radius:18px; border:1px solid rgba(15,23,42,0.4); padding:22px; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; font-family:'JetBrains Mono','SFMono-Regular',monospace; font-size:.9rem; line-height:1.6; display:flex; flex-direction:column; gap:10px; box-shadow:inset 0 0 0 1px rgba(30,41,59,0.6); scrollbar-gutter:stable both-edges; } .log-entry{ background:rgba(30,41,59,0.7); border:1px solid rgba(100,116,139,0.3); border-radius:14px; padding:10px 14px; color:#e2e8f0; transition:transform .15s, border-color .2s, background .2s; } .log-entry:hover{ transform:translateY(-1px); border-color:rgba(148,163,184,0.4); } .log-entry-system{ background:rgba(56,189,248,0.16); border-color:rgba(56,189,248,0.45); } .log-entry-broadcast{ background:rgba(251,191,36,0.16); border-color:rgba(251,191,36,0.45); } .log-team{ color:#a5b4fc; font-weight:600; } .log-entry-system .log-team{ color:#38bdf8; } .log-entry-broadcast .log-team{ color:#facc15; } .log-payload{ color:#f8fafc; opacity:.88; } .log-entry-broadcast .log-payload{ color:#fde68a; } .log-entry.hidden{ display:none !important; } .main-layout{ display:flex; flex-direction:column; gap:28px; } .main-layout.hidden{ display:none; } @media (max-width:991px){ .team-metrics{ gap:5px; } .team-metric{ padding:4px 8px; } .team-status-list{ max-height:40vh; } .log-container{ flex:1 1 auto; height:auto; min-height:40vh; max-height:none; } } @media (max-width:576px){ .hero-inner{ padding:24px; } .hero-visual{ display:none; } #config-section{ padding:24px; } .team-panel,.broadcast-card,.log-panel{ padding:22px; } .team-metrics{ gap:6px; } .team-metric{ width:100%; justify-content:space-between; } .log-container{ padding:18px; } } .team-status-list::-webkit-scrollbar, .log-container::-webkit-scrollbar{ width:8px; } .team-status-list::-webkit-scrollbar-track, .log-container::-webkit-scrollbar-track{ background:rgba(15,23,42,0.2); border-radius:999px; } .team-status-list::-webkit-scrollbar-thumb, .log-container::-webkit-scrollbar-thumb{ background:rgba(99,102,241,0.45); border-radius:999px; } .team-status-list::-webkit-scrollbar-thumb:hover, .log-container::-webkit-scrollbar-thumb:hover{ background:rgba(99,102,241,0.65); }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-surface: rgba(255,255,255,0.92);
+      --color-surface-strong: rgba(255,255,255,0.98);
+      --color-border: rgba(148,163,184,0.28);
+      --color-border-strong: rgba(99,102,241,0.35);
+      --color-primary: #4f46e5;
+      --color-primary-dark: #4338ca;
+      --color-accent: #0ea5e9;
+      --color-success: #22c55e;
+      --color-warning: #f59e0b;
+      --color-danger: #f43f5e;
+      --color-muted: #64748b;
+      --shadow-lg: 0 34px 60px -42px rgba(15,23,42,0.62);
+      --shadow-md: 0 26px 42px -36px rgba(15,23,42,0.55);
+      --shadow-soft: 0 16px 30px -26px rgba(15,23,42,0.32);
+      --radius-xl: 22px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+      --radius-pill: 999px;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #0f172a;
+      background: #eef2ff;
+      min-height: 100vh;
+      position: relative;
+      line-height: 1.45;
+    }
+
+    .background-canvas {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 18% 22%, rgba(79,70,229,0.22), transparent 55%),
+        radial-gradient(circle at 78% 12%, rgba(14,165,233,0.2), transparent 58%),
+        radial-gradient(circle at 55% 82%, rgba(16,185,129,0.2), transparent 58%),
+        #e8ecff;
+      z-index: -2;
+    }
+
+    .background-canvas::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0));
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 65%);
+    }
+
+    .dashboard {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: 48px 48px 72px;
+    }
+
+    @media (max-width: 1280px) {
+      .dashboard {
+        padding: 42px 32px 64px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard {
+        padding: 32px 24px 56px;
+      }
+    }
+
+    .glass {
+      backdrop-filter: blur(14px);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(79,70,229,0.95), rgba(14,165,233,0.92));
+      color: #f8fafc;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 62%);
+      opacity: 0.85;
+    }
+
+    .dashboard__header {
+      padding: 36px 42px 40px;
+      display: grid;
+      grid-template-columns: 1.8fr 1fr;
+      gap: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard__header {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+    }
+
+    .hero__content {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.3);
+      font-size: 0.74rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .hero__title {
+      font-size: clamp(2rem, 1.2vw + 1.8rem, 2.9rem);
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .hero__status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.28);
+      font-size: 0.86rem;
+      font-weight: 500;
+    }
+
+    .hero__status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74,222,128,0.8);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.8); }
+      70% { box-shadow: 0 0 0 12px rgba(74,222,128,0); }
+      100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+    }
+
+    .hero__metrics {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    @media (max-width: 540px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .metric-card {
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      background: rgba(15,23,42,0.32);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.14);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .metric-card__label {
+      font-size: 0.75rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(226,232,240,0.78);
+      font-weight: 600;
+    }
+
+    .metric-card__value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .metric-card__sub {
+      font-size: 0.88rem;
+      color: rgba(226,232,240,0.86);
+    }
+
+    .dashboard__body {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: 320px 300px minmax(0, 1fr);
+      gap: 28px;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 1280px) {
+      .dashboard__body {
+        grid-template-columns: 280px 280px minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard__body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 22px 22px;
+      position: relative;
+      border-radius: var(--radius-xl);
+      height: 100%;
+    }
+
+    .panel__header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel__title {
+      margin: 0;
+      font-size: 1.16rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .panel__subtitle {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--color-muted);
+    }
+
+    .connection-panel {
+      margin-top: 24px;
+      padding: 20px 22px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      align-items: flex-start;
+      background: var(--color-surface-strong);
+    }
+
+    .connection-panel__header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .connection-panel__title {
+      margin: 0;
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .connection-panel__subtitle {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--color-muted);
+      line-height: 1.4;
+    }
+
+    .connection-panel__status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.08);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-muted);
+    }
+
+    .connection-panel__status.is-ready {
+      background: rgba(34,197,94,0.18);
+      color: #047857;
+    }
+
+    .connection-panel__status.is-stale {
+      background: rgba(249,115,22,0.16);
+      color: #9a3412;
+    }
+
+    .connection-panel__status.is-empty {
+      background: rgba(15,23,42,0.08);
+      color: var(--color-muted);
+    }
+
+    .connection-panel__form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px 18px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-label {
+      font-size: 0.76rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-muted);
+    }
+
+    .form-input {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148,163,184,0.45);
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: rgba(255,255,255,0.94);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.16);
+    }
+
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      grid-column: 1 / -1;
+      margin-top: 2px;
+      flex-wrap: wrap;
+    }
+
+    .connection-panel__footnote {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      grid-column: 1 / -1;
+      font-size: 0.75rem;
+      color: var(--color-muted);
+    }
+
+    .connection-panel__reset {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--color-primary-dark);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 1080px) {
+      .connection-panel {
+        padding: 18px;
+      }
+    }
+    }
+
+    .section-label {
+      font-size: 0.76rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-muted);
+    }
+
+    .teams-panel {
+      gap: 18px;
+    }
+
+    .search-field {
+      position: relative;
+    }
+
+    .search-field input {
+      width: 100%;
+      padding: 12px 16px 12px 42px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148,163,184,0.45);
+      background: var(--color-surface-strong);
+      font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-field input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.18);
+    }
+
+    .search-field .bi-search {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      transform: translateY(-50%);
+      color: var(--color-muted);
+      font-size: 1rem;
+    }
+
+    .teams-panel__filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-pill {
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(99,102,241,0.22);
+      background: rgba(99,102,241,0.08);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-primary-dark);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .filter-pill.is-active {
+      background: var(--color-primary);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 18px 30px -20px rgba(79,70,229,0.65);
+      transform: translateY(-1px);
+    }
+
+    .teams-panel__watchlist {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(79,70,229,0.08);
+      border: 1px solid rgba(79,70,229,0.18);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+    }
+
+    .watchlist__title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--color-primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .watchlist__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .watchlist-tag {
+      --tag-color: var(--color-primary);
+      --tag-bg: rgba(79,70,229,0.12);
+      --tag-border: rgba(79,70,229,0.28);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
+      color: var(--tag-color);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .watchlist-tag::before {
+      content: '●';
+      font-size: 1.05rem;
+      line-height: 1;
+      color: var(--tag-color);
+    }
+
+    .watchlist-tag--empty {
+      --tag-color: var(--color-muted);
+      --tag-bg: rgba(148,163,184,0.14);
+      --tag-border: rgba(148,163,184,0.24);
+      font-style: italic;
+    }
+
+    .watchlist-tag--empty::before {
+      content: '◎';
+      font-size: 1rem;
+      color: var(--tag-color);
+    }
+
+    .watchlist__meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--color-muted);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .watchlist-clear {
+      border: none;
+      background: none;
+      color: var(--color-primary-dark);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline transparent;
+      transition: color 0.2s, text-decoration-color 0.2s;
+    }
+
+    .watchlist-clear:hover {
+      color: var(--color-primary);
+      text-decoration-color: currentColor;
+    }
+
+    .watchlist-clear:disabled {
+      color: rgba(100,116,139,0.6);
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    .teams-panel__list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      max-height: none;
+      padding-right: 6px;
+      margin-right: -6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,0.32) transparent;
+    }
+
+    .teams-panel__empty {
+      padding: 28px 14px;
+      text-align: center;
+      border: 1px dashed rgba(148,163,184,0.4);
+      border-radius: var(--radius-lg);
+      color: var(--color-muted);
+      font-size: 0.9rem;
+      background: rgba(148,163,184,0.08);
+    }
+
+    .teams-panel__list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .teams-panel__list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .teams-panel__list::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,0.45);
+      border-radius: 999px;
+    }
+
+    .team-card {
+      --accent: var(--color-primary);
+      --card-bg: rgba(79,70,229,0.08);
+      --card-border: rgba(79,70,229,0.26);
+      display: flex;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .team-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 36px -28px rgba(15,23,42,0.35);
+      border-color: var(--accent);
+    }
+
+    .team-card input[type="checkbox"] {
+      appearance: none;
+      position: relative;
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid rgba(15,23,42,0.2);
+      margin-top: 4px;
+      background: #fff;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .team-card input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .team-card input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 6px;
+      width: 6px;
+      height: 10px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .team-card__content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .team-card__row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .team-card__identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .team-card__status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.6);
+    }
+
+    .team-card__state {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.22);
+      color: #475569;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .team-card__state--waiting {
+      background: rgba(148,163,184,0.18);
+      color: #475569;
+    }
+
+    .team-card__state--ack {
+      background: rgba(59,130,246,0.22);
+      color: #1e40af;
+    }
+
+    .team-card__state--done {
+      background: rgba(16,185,129,0.22);
+      color: #0f766e;
+    }
+
+    .team-card__state--warn {
+      background: rgba(251,191,36,0.25);
+      color: #92400e;
+    }
+
+    .team-card__state--dist {
+      background: rgba(236,72,153,0.18);
+      color: #9d174d;
+    }
+
+    .team-card__state--sys {
+      background: rgba(129,140,248,0.22);
+      color: #3730a3;
+    }
+
+    .team-card__state--offline {
+      background: rgba(148,163,184,0.26);
+      color: #334155;
+    }
+
+    .team-card__state--issue {
+      background: rgba(248,113,113,0.22);
+      color: #991b1b;
+    }
+
+    .team-card__state--online {
+      background: rgba(34,197,94,0.18);
+      color: #06603b;
+    }
+
+    .team-card__state--idle {
+      background: rgba(251,191,36,0.2);
+      color: #92400e;
+    }
+
+    .team-card__detail strong {
+      font-weight: 600;
+      color: rgba(15,23,42,0.84);
+    }
+
+    .team-card.status-idle {
+      --accent: var(--color-warning);
+      --card-bg: rgba(245,158,11,0.12);
+      --card-border: rgba(245,158,11,0.3);
+    }
+
+    .team-card.status-error {
+      --accent: var(--color-danger);
+      --card-bg: rgba(244,63,94,0.12);
+      --card-border: rgba(244,63,94,0.32);
+    }
+
+    .team-card.status-offline {
+      --accent: #94a3b8;
+      --card-bg: rgba(148,163,184,0.14);
+      --card-border: rgba(148,163,184,0.3);
+      opacity: 0.85;
+    }
+
+    .teams-panel__footer {
+      font-size: 0.78rem;
+      color: var(--color-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .teams-panel__footer a {
+      color: var(--color-primary-dark);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .teams-panel__footer a:hover {
+      text-decoration: underline;
+    }
+
+    .command-panel {
+      gap: 18px;
+      background: var(--color-surface-strong);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .command-panel__content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .command-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .command-card {
+      background: rgba(255,255,255,0.92);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148,163,184,0.28);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .command-card__header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .command-card__title {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .command-card__subtitle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--color-muted);
+    }
+
+    .command-card__subtitle strong {
+      color: var(--color-primary-dark);
+    }
+
+    .command-card__note {
+      font-size: 0.8rem;
+      color: #475569;
+      background: rgba(99,102,241,0.08);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      line-height: 1.45;
+    }
+
+    .command-card__input {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .command-card__input .form-input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .command-card__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .command-card__meta {
+      font-size: 0.78rem;
+      color: var(--color-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .btn--primary {
+      background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+      color: #fff;
+      box-shadow: 0 18px 34px -24px rgba(79,70,229,0.75);
+    }
+
+    .btn--primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .btn--accent {
+      background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+      color: #0f172a;
+      box-shadow: 0 18px 32px -24px rgba(14,165,233,0.7);
+    }
+
+    .btn--ghost {
+      border: 1px solid rgba(148,163,184,0.45);
+      background: #fff;
+      color: var(--color-muted);
+    }
+
+    .command-card__chips,
+    .command-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .command-chip {
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.08);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(15,23,42,0.76);
+      border: 1px solid rgba(148,163,184,0.2);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .command-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px -18px rgba(15,23,42,0.3);
+      background: rgba(79,70,229,0.12);
+    }
+
+    .selected-summary {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(79,70,229,0.18);
+      background: rgba(79,70,229,0.06);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .selected-summary__title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-primary-dark);
+    }
+
+    .selected-summary__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #0f172a;
+    }
+
+    .selected-summary__item {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.8);
+      border: 1px solid rgba(79,70,229,0.2);
+      font-weight: 600;
+    }
+
+    .command-card--timeline {
+      grid-column: 1 / -1;
+    }
+
+    .command-feedback {
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      border: 1px solid transparent;
+      margin-top: -6px;
+    }
+
+    .command-feedback i {
+      font-size: 1.1rem;
+    }
+
+    .command-feedback.is-hidden {
+      display: none;
+    }
+
+    .command-feedback--info {
+      background: rgba(99,102,241,0.1);
+      border-color: rgba(99,102,241,0.35);
+      color: #312e81;
+    }
+
+    .command-feedback--success {
+      background: rgba(34,197,94,0.12);
+      border-color: rgba(34,197,94,0.32);
+      color: #166534;
+    }
+
+    .command-feedback--warn {
+      background: rgba(249,115,22,0.12);
+      border-color: rgba(249,115,22,0.32);
+      color: #9a3412;
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,0.32) transparent;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 6px;
+      bottom: 6px;
+      left: 6px;
+      width: 2px;
+      background: rgba(148,163,184,0.4);
+    }
+
+    .timeline-event {
+      position: relative;
+      padding-left: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .timeline-event::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: -18px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--color-primary);
+      box-shadow: 0 0 0 4px rgba(79,70,229,0.18);
+    }
+
+    .timeline-event--ack::before {
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 4px rgba(14,165,233,0.18);
+    }
+
+    .timeline-event--done::before {
+      border-color: var(--color-success);
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.2);
+    }
+
+    .timeline-event--alert::before {
+      border-color: var(--color-warning);
+      box-shadow: 0 0 0 4px rgba(245,158,11,0.2);
+    }
+
+    .timeline::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .timeline::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .timeline::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,0.38);
+      border-radius: 999px;
+    }
+
+    .timeline-event__time {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      font-weight: 600;
+    }
+
+    .timeline-event__body {
+      font-size: 0.9rem;
+      color: #0f172a;
+    }
+
+    .log-panel {
+      gap: 18px;
+    }
+
+    .log-panel__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .log-panel__title h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .log-panel__title p {
+      margin: 4px 0 0;
+      font-size: 0.86rem;
+      color: var(--color-muted);
+    }
+
+    .log-panel__controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.86rem;
+      color: var(--color-muted);
+      font-weight: 600;
+    }
+
+    .toggle input {
+      display: none;
+    }
+
+    .toggle-switch {
+      width: 46px;
+      height: 24px;
+      border-radius: var(--radius-pill);
+      background: #e2e8f0;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 6px 14px rgba(15,23,42,0.18);
+      transition: transform 0.2s;
+    }
+
+    .toggle input:checked + .toggle-switch {
+      background: var(--color-primary);
+    }
+
+    .toggle input:checked + .toggle-switch::after {
+      transform: translateX(20px);
+    }
+
+    .log-panel__actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148,163,184,0.4);
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted);
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s, transform 0.2s;
+    }
+
+    .icon-button:hover {
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+      transform: translateY(-1px);
+    }
+
+    .log-panel__watchlist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .log-panel__watchlist-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--color-muted);
+    }
+
+    .log-panel__watchlist-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .log-filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .log-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.18);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--color-primary-dark);
+    }
+
+    .log-filter input {
+      accent-color: var(--color-primary);
+    }
+
+    .log-clear-btn {
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(99,102,241,0.22);
+      color: var(--color-primary-dark);
+      box-shadow: 0 10px 24px -16px rgba(99,102,241,0.6);
+    }
+
+    .log-clear-btn i {
+      font-size: 0.9rem;
+    }
+
+    .log-panel__history {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(15,23,42,0.4);
+      background: linear-gradient(160deg, #0f172a 0%, #0b1220 85%);
+      padding: 18px;
+      max-height: 520px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,0.32) transparent;
+    }
+
+    .log-panel__history::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .log-panel__history::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,0.32);
+      border-radius: 999px;
+    }
+
+    .log-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .log-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      background: linear-gradient(145deg, rgba(30,41,59,0.72), rgba(15,23,42,0.86));
+      border: 1px solid rgba(148,163,184,0.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #e2e8f0;
+      box-shadow: 0 8px 18px -14px rgba(15,23,42,0.7);
+    }
+
+    .log-item__left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .log-item__team {
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: #93c5fd;
+    }
+
+    .log-item__message {
+      font-size: 0.82rem;
+      color: #e2e8f0;
+    }
+
+    .log-item__meta {
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    .log-item__time {
+      font-size: 0.7rem;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .log-item--ack .log-item__team { color: #60a5fa; }
+    .log-item--done .log-item__team { color: #5eead4; }
+    .log-item--warn .log-item__team { color: #fbbf24; }
+    .log-item--dist .log-item__team { color: #f472b6; }
+    .log-item--sys .log-item__team { color: #a5b4fc; }
+
+    .log-empty {
+      text-align: center;
+      padding: 20px 12px;
+      color: #94a3b8;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.85rem;
+    }
+
+
+    .log-panel__legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.78rem;
+      color: var(--color-muted);
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .legend-swatch.team-15 { background: #6366f1; }
+    .legend-swatch.team-16 { background: #22d3ee; }
+    .legend-swatch.team-18 { background: #f97316; }
+
+    @media (max-width: 1080px) {
+      .panel {
+        padding: 24px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .dashboard {
+        padding: 28px 16px 48px;
+      }
+
+      .log-panel__history {
+        max-height: none;
+      }
+
+      .command-card__input {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .command-card__input .form-input {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="page-wrapper">
-    <!-- ... ส่วน Header, Config, Stats เหมือนเดิม ... -->
-    <header class="glass-card hero-card mb-4"> <div class="hero-inner"> <div class="d-flex flex-column gap-3"> <h1 class="hero-title">Teacher's Professional Dashboard</h1> <p class="hero-subtitle" id="mqtt-status">Please configure and connect.</p> <div class="hero-badge" id="connection-badge"> <span class="badge-indicator" id="connection-indicator"></span> <span class="badge-label" id="connection-badge-label">Waiting for connection</span> </div> </div> <div class="hero-visual"><i class="bi-broadcast-pin"></i></div> </div> </header> <section id="config-section" class="glass-card mb-4"> <div class="section-heading mb-3"> <h2 class="section-title mb-1">Connection Settings</h2> <p class="section-subtitle">Enter broker details to begin listening to team activity.</p> </div> <div class="row g-3 align-items-end"> <div class="col-12 col-lg-6"> <label for="broker-url" class="form-label">MQTT Broker URL</label> <input type="text" class="form-control form-control-lg" id="broker-url" value="wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt"> </div> <div class="col-12 col-lg-4"> <label for="root-topic" class="form-label">Root Topic</label> <input type="text" class="form-control form-control-lg" id="root-topic" value="nlbot"> </div> <div class="col-12 col-lg-3"> <label for="mqtt-username" class="form-label">Username</label> <input type="text" class="form-control form-control-lg" id="mqtt-username" value="teacher"> </div> <div class="col-12 col-lg-3"> <label for="mqtt-password" class="form-label">Password</label> <input type="password" class="form-control form-control-lg" id="mqtt-password" value="Stylor123"> </div> <div class="col-12 col-lg-2 d-grid"> <button id="connect-btn" class="btn btn-gradient py-3">Connect</button> </div> </div> </section> <main id="dashboard-section" class="main-layout hidden">
-  <div class="row g-4 align-items-start">
-    <div class="col-12 col-lg-4 d-flex flex-column gap-4 team-column">
-      <div class="glass-card broadcast-card">
-        <div>
-          <h3 class="section-title mb-1">Broadcast Command</h3>
-          <p class="section-helper mb-0">Send a quick instruction to every connected team.</p>
-        </div>
-        <div class="input-group input-group-lg">
-          <input type="text" id="broadcast-cmd-input" class="form-control" placeholder="e.g., FWD:1 or STOP">
-          <button id="broadcast-cmd-btn" class="btn">Send to all</button>
+  <div class="background-canvas" aria-hidden="true"></div>
+  <main class="dashboard">
+    <header class="dashboard__header hero glass">
+      <div class="hero__content">
+        <span class="hero__eyebrow"><i class="bi bi-wifi"></i> Teacher Command Console</span>
+        <h1 class="hero__title">Monitor, command, and coach every robot team with clarity.</h1>
+        <div class="hero__status">
+          <span class="hero__status-dot"></span>
+          Connected to HiveMQ Gateway · Syncing heartbeat in the background
         </div>
       </div>
-      <div class="glass-card team-panel flex-grow-1">
-        <div class="d-flex align-items-center justify-content-between">
-          <h3 class="section-title mb-0">Teams</h3>
-          <span class="badge text-bg-light text-uppercase fw-semibold">Live feed</span>
+      <div class="hero__metrics">
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <span class="metric-card__label">Robots Online</span>
+            <span class="metric-card__value" id="metric-robots-online">0</span>
+            <span class="metric-card__sub" id="metric-robots-sub">Waiting for devices</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">Critical Alerts</span>
+            <span class="metric-card__value" id="metric-alerts">0</span>
+            <span class="metric-card__sub" id="metric-alerts-sub">No alerts detected</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">Commands Today</span>
+            <span class="metric-card__value" id="metric-commands">0</span>
+            <span class="metric-card__sub" id="metric-commands-sub">No commands sent yet</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">Acknowledgement Rate</span>
+            <span class="metric-card__value" id="metric-ack-rate">--</span>
+            <span class="metric-card__sub" id="metric-ack-sub">Awaiting first ACK</span>
+          </article>
         </div>
-        <div class="team-metrics">
-          <div class="team-metric total" data-bs-toggle="tooltip" data-bs-placement="top" title="Total teams discovered">
-            <span class="metric-label">TOTAL</span>
-            <span class="metric-value" id="team-count">0</span>
-          </div>
-          <div class="team-metric active" data-bs-toggle="tooltip" data-bs-placement="top" title="Teams currently active">
-            <span class="metric-label">ACTIVE</span>
-            <span class="metric-value" id="active-team-count">0</span>
-          </div>
-          <div class="team-metric inactive" data-bs-toggle="tooltip" data-bs-placement="top" title="Teams waiting for activity">
-            <span class="metric-label">IDLE</span>
-            <span class="metric-value" id="inactive-team-count">0</span>
-          </div>
-        </div>
-        <p class="section-helper mb-0">Select a team to filter logs or send a specific command.</p>
-        <ul class="team-status-list" id="team-status-container"></ul>
       </div>
-    </div>
-    <div class="col-12 col-lg-8 log-column">
-      <div class="glass-card log-panel h-100">
-        <div class="log-header">
-          <div>
-            <h3 class="section-title mb-0">Live Log</h3>
-            <span class="log-topic">Topic: <span id="subscribed-topic-display"></span></span>
+    </header>
+
+    <section class="connection-panel glass" id="connection-panel">
+      <div class="connection-panel__header">
+        <h2 class="connection-panel__title">MQTT Connection Setup</h2>
+        <p class="connection-panel__subtitle">We preload the classroom HiveMQ credentials so you can connect instantly. Review or edit them before going live.</p>
+        <span class="connection-panel__status" id="connection-status-label"><i class="bi bi-plug"></i> Awaiting configuration</span>
+      </div>
+      <form class="connection-panel__form" id="connection-panel-form" autocomplete="off">
+        <div class="form-field full">
+          <label class="form-label" for="broker-url-input">Broker URL</label>
+          <input class="form-input" id="broker-url-input" name="brokerUrl" type="text" autocomplete="url">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="root-topic-input">Root Topic</label>
+          <input class="form-input" id="root-topic-input" name="rootTopic" type="text" autocomplete="off">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="mqtt-username-input">MQTT Username</label>
+          <input class="form-input" id="mqtt-username-input" name="username" type="text" autocomplete="username">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="mqtt-password-input">MQTT Password</label>
+          <input class="form-input" id="mqtt-password-input" name="password" type="password" autocomplete="current-password">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="mqtt-clientid-input">Client ID (optional)</label>
+          <input class="form-input" id="mqtt-clientid-input" name="clientId" type="text" autocomplete="off">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="mqtt-keepalive-input">Keep Alive (seconds)</label>
+          <input class="form-input" id="mqtt-keepalive-input" name="keepAlive" type="number" min="10" step="5" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn btn--primary" type="button" id="connect-btn"><i class="bi bi-link-45deg"></i> Connect</button>
+          <button class="btn btn--ghost" type="button" id="disconnect-btn"><i class="bi bi-power"></i> Disconnect</button>
+          <button class="btn btn--accent" type="button" id="test-credentials-btn"><i class="bi bi-play-circle"></i> Test Credentials</button>
+        </div>
+        <div class="connection-panel__footnote">
+          <span id="connection-last-saved">Last saved: never</span>
+          <button class="btn btn--ghost" type="button" id="clear-connection"><i class="bi bi-trash"></i> Clear Saved Info</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="dashboard__body">
+      <aside class="panel teams-panel glass">
+        <div class="panel__header">
+          <h2 class="panel__title">Teams Directory</h2>
+          <p class="panel__subtitle">Select one or more teams to build your watchlist. Live logs and targeted commands respond instantly.</p>
+        </div>
+        <div class="search-field">
+          <i class="bi bi-search"></i>
+          <input type="search" placeholder="Search by team name, table, or student...">
+        </div>
+        <div class="teams-panel__filters">
+          <span class="filter-pill is-active">All</span>
+          <span class="filter-pill">Active</span>
+          <span class="filter-pill">Idle</span>
+          <span class="filter-pill">Error</span>
+        </div>
+        <div class="teams-panel__watchlist">
+          <span class="watchlist__title"><i class="bi bi-eye"></i> Watchlist (<span id="watchlist-count">0</span>)</span>
+          <div class="watchlist__tags" id="watchlist-tags">
+            <span class="watchlist-tag watchlist-tag--empty">No teams selected</span>
           </div>
-          <!-- Minimal controls: visibility filters + show-all -->
-          <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" id="showEvt" checked>
-              <label class="form-check-label" for="showEvt" data-bs-toggle="tooltip" data-bs-placement="top" title="Toggle event messages">Show /evt</label>
+          <div class="watchlist__meta" id="watchlist-meta">
+            <span id="watchlist-meta-text">Select teams below to focus their events here in real-time</span>
+            <button type="button" class="watchlist-clear" id="clear-watchlist-btn" disabled>Clear watchlist</button>
+          </div>
+                <div class="teams-panel__list" id="teams-list">
+          <div class="teams-panel__empty" id="teams-empty">No teams detected yet. Robots will appear here once they come online.</div>
+        </div>
+</div>
+        <div class="teams-panel__footer">
+          <span>Showing <span id="team-count-label">0</span> teams · scroll for more</span>
+        </div>
+      </aside>
+
+      <section class="panel command-panel glass">
+        <div class="panel__header">
+          <h2 class="panel__title">Command Center</h2>
+          <p class="panel__subtitle">Send quick broadcast actions or target only the teams you select.</p>
+        </div>
+        <div class="command-panel__content">
+          <div class="command-grid">
+            <article class="command-card command-card--broadcast">
+              <div class="command-card__header">
+                <h3 class="command-card__title">Broadcast Command</h3>
+                <p class="command-card__subtitle">Send one instruction to every connected robot.</p>
+              </div>
+                            <div class="command-card__input">
+                <input class="form-input" id="broadcast-command-input" type="text" placeholder='Examples: "STOP", "FWD:1", "LEFT:0.5"'>
+                <button class="btn btn--primary" type="button" id="broadcast-submit"><i class="bi bi-broadcast-pin"></i> Broadcast</button>
+              </div>
+              <div class="command-card__chips command-chips" id="broadcast-presets">
+                <button class="command-chip" type="button" data-command="STOP">STOP</button>
+                <button class="command-chip" type="button" data-command="FWD:1">FWD:1</button>
+                <button class="command-chip" type="button" data-command="LEFT:1">LEFT:1</button>
+                <button class="command-chip" type="button" data-command="RIGHT:1">RIGHT:1</button>
+                <button class="command-chip" type="button" data-command="BWD:1">BWD:1</button>
+              </div>
+              
+            </article>
+
+            <article class="command-card command-card--targeted">
+              <div class="command-card__header">
+                <h3 class="command-card__title">Send to Selected Teams</h3>
+                <p class="command-card__subtitle">Target only the robots you have checked on the left.</p>
+              </div>
+              
+              <div class="selected-summary" id="selected-summary">
+                <span class="selected-summary__title" id="selected-summary-title">No teams selected</span>
+                <div class="selected-summary__list" id="selected-summary-list"></div>
+                <p class="command-card__subtitle" id="selected-summary-note">Select teams to add them here before sending the command.</p>
+              </div>
+              <div class="command-card__input">
+                <input class="form-input" id="selected-command-input" type="text" placeholder='Example: "RIGHT:0.5"'>
+                <button class="btn btn--accent" type="button" id="selected-submit" disabled><i class="bi bi-send-arrow-up"></i> Send to selected (0)</button>
+              </div>
+              <div class="command-card__meta">
+                <span><i class="bi bi-info-circle"></i> Only the robots listed above will receive this command.</span>
+              </div>
+            </article>
+          </div>
+
+          <div id="command-feedback" class="command-feedback is-hidden command-feedback--info">
+            <i class="bi bi-info-circle"></i>
+            <span id="command-feedback-text">Ready to send commands</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel log-panel glass">
+        <div class="log-panel__header">
+          <div class="log-panel__title">
+            <h2 id="log-panel-title">Live Log: All Teams</h2>
+            <p>Streaming the last 50 events · Scroll upward for older history.</p>
+          </div>
+          <div class="log-panel__controls">
+            <div class="log-filter-group">
+              <label class="log-filter"><input type="checkbox" data-log-filter="ACK" checked> ACK</label>
+              <label class="log-filter"><input type="checkbox" data-log-filter="DONE" checked> DONE</label>
+              <label class="log-filter"><input type="checkbox" data-log-filter="WARN" checked> WARN</label>
+              <label class="log-filter"><input type="checkbox" data-log-filter="DIST" checked> DIST</label>
+              <label class="log-filter"><input type="checkbox" data-log-filter="SYS" checked> SYS</label>
             </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" id="showCmd">
-              <label class="form-check-label" for="showCmd" data-bs-toggle="tooltip" data-bs-placement="top" title="Toggle command messages">Show /cmd</label>
-            </div>
-            <button id="show-all-btn">Clear screen</button>
+            <button class="btn btn--ghost log-clear-btn" type="button" id="clear-log-btn"><i class="bi bi-x-circle"></i> Clear Log</button>
           </div>
         </div>
-        <div class="log-container" id="log-container"></div>
-      </div>
-    </div>
-  </div>
-</main>
-
-  </div>
-
-  <!-- +++ ADDED: MODAL FOR SPECIFIC COMMANDS +++ -->
-  <div class="modal fade" id="specific-command-modal" tabindex="-1" aria-labelledby="specificCommandModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content glass-card" style="border: 1px solid var(--brand-primary)">
-        <div class="modal-header border-0">
-          <h5 class="modal-title section-title" id="specificCommandModalLabel">Send Command to <span id="modal-team-name"></span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="log-panel__watchlist">
+          <span class="log-panel__watchlist-label" id="log-watchlist-label">Currently showing all teams</span>
+          <div class="log-panel__watchlist-tags" id="log-watchlist-tags">
+            <span class="watchlist-tag watchlist-tag--empty">All teams</span>
+          </div>
         </div>
-        <div class="modal-body">
-          <p class="section-helper">Enter a command for this team only.</p>
-          <input type="text" class="form-control form-control-lg" id="specific-cmd-input" placeholder="e.g., FWD:2">
+        <div class="log-panel__history">
+          <div class="log-items" id="log-items">
+            <div class="log-empty" id="log-empty">Waiting for events...</div>
+          </div>
         </div>
-        <div class="modal-footer border-0">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-gradient" id="send-specific-cmd-btn">Send Command</button>
+        <div class="log-panel__legend">
+          <div class="legend-item"><i class="bi bi-info-circle"></i> Filters apply instantly without clearing history</div>
+          <div class="legend-item"><i class="bi bi-hdd-network"></i> Listening on subscribed MQTT topics</div>
         </div>
-      </div>
-    </div>
-  </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  // --- UI Elements ---
-  const configSection = document.getElementById('config-section'),
-        dashboardSection = document.getElementById('dashboard-section');
-  const connectBtn = document.getElementById('connect-btn'),
-        showAllBtn = document.getElementById('show-all-btn');
-  const brokerUrlInput = document.getElementById('broker-url'), mqttUsernameInput = document.getElementById('mqtt-username'), mqttPasswordInput = document.getElementById('mqtt-password'),
-        rootTopicInput = document.getElementById('root-topic');
-  const logContainer = document.getElementById('log-container'),
-        teamStatusContainer = document.getElementById('team-status-container');
-  const mqttStatus = document.getElementById('mqtt-status'),
-        subscribedTopicDisplay = document.getElementById('subscribed-topic-display');
-  const teamCountSpan = document.getElementById('team-count'),
-        activeCountSpan = document.getElementById('active-team-count'),
-        inactiveCountSpan = document.getElementById('inactive-team-count');
-  const broadcastCmdInput = document.getElementById('broadcast-cmd-input'),
-        broadcastCmdBtn = document.getElementById('broadcast-cmd-btn');
-  const connectionBadge = document.getElementById('connection-badge'),
-        connectionIndicator = document.getElementById('connection-indicator'),
-        connectionBadgeLabel = document.getElementById('connection-badge-label');
-
-  const showEvtChk = document.getElementById('showEvt');
-  const showCmdChk = document.getElementById('showCmd');
-  
-  const specificCommandModalEl = document.getElementById('specific-command-modal');
-  const specificCommandModal = new bootstrap.Modal(specificCommandModalEl);
-  const modalTeamNameSpan = document.getElementById('modal-team-name');
-  const specificCmdInput = document.getElementById('specific-cmd-input');
-  const sendSpecificCmdBtn = document.getElementById('send-specific-cmd-btn');
-
-  // --- App State ---
-  const teams = {};
-  let client = null;
-  let currentFilter = null;
-  let currentTargetTeamTopic = null;
-  const INACTIVE_TIMEOUT_MS = 30000;
-  const MAX_LOG_ENTRIES = 1500;
-
-  // --- Event Listeners ---
-  connectBtn.addEventListener('click', () => {
-    const brokerUrl = brokerUrlInput.value.trim();
-    const rootTopic = rootTopicInput.value.trim();
-    const username = mqttUsernameInput.value.trim();
-    const password = mqttPasswordInput.value;
-    if (!brokerUrl || !rootTopic) { alert("Broker URL and Root Topic cannot be empty."); return; }
-    connectBtn.disabled = true;
-    connectBtn.textContent = 'Connecting...';
-    mqttStatus.textContent = `Connecting to ${brokerUrl}...`;
-    mqttStatus.classList.remove('status-success');
-    if (connectionBadge) { connectionBadge.classList.remove('is-online'); connectionBadge.classList.add('is-connecting'); }
-    if (connectionBadgeLabel) { connectionBadgeLabel.textContent = 'Connecting...'; }
-    if (connectionIndicator) { connectionIndicator.classList.add('pulse'); }
-    initializeMqtt(brokerUrl, rootTopic, username, password);
-  });
-
-  showAllBtn.addEventListener('click', () => {
-    logContainer.innerHTML = '';
-  });
-
-  [showEvtChk, showCmdChk].forEach(cb => cb.addEventListener('change', applyFilters));
-
-  // *** CORRECTED: Broadcast implementation ***
-  broadcastCmdBtn.addEventListener('click', () => {
-    const command = broadcastCmdInput.value.trim().toUpperCase();
-    if (!command) { alert('Please enter a command to broadcast.'); return; }
-    if (!client || !client.connected) { alert("Not connected."); return; }
-    
-    // Get list of currently active teams
-    const teamList = Object.keys(teams).filter(k => teams[k].status === 'active');
-    
-    if (teamList.length === 0) { alert('No active teams online to send commands to.'); return; }
-
-    if (confirm(`Send "${command}" to all ${teamList.length} active teams?`)) {
-      logMessage('ADMIN-BROADCAST', `Sending "${command}" to all teams...`, 'broadcast', false);
-      
-      // Publish the same command to each team's specific /cmd topic
-      teamList.forEach(teamTopicBase => client.publish(`${teamTopicBase}/cmd`, command));
-      
-      broadcastCmdInput.value = '';
-    }
-  });
-
-  sendSpecificCmdBtn.addEventListener('click', () => {
-      const command = specificCmdInput.value.trim().toUpperCase();
-      if (!command) { alert('Please enter a command.'); return; }
-      if (!currentTargetTeamTopic) { alert('No target team selected.'); return; }
-
-      const commandTopic = `${currentTargetTeamTopic}/cmd`;
-      logMessage('ADMIN-SPECIFIC', `Sending "${command}" to ${currentTargetTeamTopic.split('/').pop()}`, 'cmd', false);
-      client.publish(commandTopic, command);
-
-      specificCmdInput.value = '';
-      specificCommandModal.hide();
-  });
-
-  function initializeMqtt(brokerUrl, rootTopic, username, password) {
-      console.log('Connecting to:', brokerUrl);
-      let parsed;
-      try {
-        parsed = new URL(brokerUrl);
-      } catch (err) {
-        console.error('Invalid broker URL:', err);
-        mqttStatus.textContent = 'Invalid broker URL';
-        return;
-      }
-
-      const isSecureWs = parsed.protocol === 'wss:';
-      const connectionOptions = {
-        protocol: parsed.protocol.replace(':', ''),
-        host: parsed.hostname,
-        hostname: parsed.hostname,
-        port: parsed.port ? Number(parsed.port) : (isSecureWs ? 443 : 80),
-        path: parsed.pathname && parsed.pathname !== '/' ? parsed.pathname + parsed.search : '/mqtt',
-        reconnectPeriod: 1500,
-        clean: true,
-        clientId: 'admin-' + Math.random().toString(16).slice(2),
-        keepalive: 60,
-        protocolVersion: 5,
-        rejectUnauthorized: true
+      </section>
+    </section>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const CONFIG_KEY = 'mqttConfig';
+      const sessionConnectKey = 'mqttLastConnect';
+      const DEFAULT_CONFIG = {
+        brokerUrl: 'wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt',
+        rootTopic: 'nlbot',
+        username: 'teacher',
+        password: 'Stylor123',
+        clientId: '',
+        keepAlive: '60'
       };
 
-      if (username && username.trim()) {
-        connectionOptions.username = username.trim();
-        connectionOptions.password = password ? password.trim() : '';
-        console.log('Connecting with username:', connectionOptions.username);
+      const inputs = {
+        brokerUrl: document.getElementById('broker-url-input'),
+        rootTopic: document.getElementById('root-topic-input'),
+        username: document.getElementById('mqtt-username-input'),
+        password: document.getElementById('mqtt-password-input'),
+        clientId: document.getElementById('mqtt-clientid-input'),
+        keepAlive: document.getElementById('mqtt-keepalive-input')
+      };
+
+      const connectBtn = document.getElementById('connect-btn');
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      const testBtn = document.getElementById('test-credentials-btn');
+      const clearBtn = document.getElementById('clear-connection');
+      const statusLabel = document.getElementById('connection-status-label');
+      const lastSavedLabel = document.getElementById('connection-last-saved');
+
+      if (!statusLabel) { return; }
+
+      function formatTimestamp(value) {
+        if (!value) { return null; }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) { return null; }
+        return parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
       }
 
-      client = mqtt.connect(connectionOptions);
-      client.on('connect', () => {
-        configSection.style.display = 'none';
-        dashboardSection.classList.remove('hidden');
-        showAllBtn.style.display = 'inline-flex';
-        const adminTopic = `${rootTopic}/#`;
-        subscribedTopicDisplay.textContent = adminTopic;
-        mqttStatus.textContent = `Connected! Monitoring: ${adminTopic}`;
-        mqttStatus.classList.add('status-success');
-        if (connectionBadge) { connectionBadge.classList.remove('is-connecting'); connectionBadge.classList.add('is-online'); }
-        if (connectionBadgeLabel) { connectionBadgeLabel.textContent = 'Live monitoring'; }
-        if (connectionIndicator) { connectionIndicator.classList.remove('pulse'); }
-        logMessage('System', 'Welcome, Admin. Waiting for messages...', 'system', false);
-        client.subscribe(adminTopic, err => { if (err) logMessage('System', `Subscription failed: ${err}`, 'system', false); });
-        renderTeamList();
-      });
-
-      client.on('error', (err) => {
-        console.error('MQTT error:', err);
-        mqttStatus.textContent = `Connection error: ${err?.message || err}`;
-        mqttStatus.classList.remove('status-success');
-        if (connectionBadge) connectionBadge.classList.remove('is-connecting','is-online');
-        if (connectionBadgeLabel) connectionBadgeLabel.textContent = 'Error — retry';
-        if (connectionIndicator) connectionIndicator.classList.remove('pulse');
-        connectBtn.disabled = false; connectBtn.textContent = 'Connect';
-      });
-
-      // *** CORRECTED: Topic parsing logic ***
-      client.on('message', (topic, payload) => {
-          const msg = payload.toString().trim();
-          const parts = topic.split('/');
-          
-          // Expects topics like: nlbot/classA/TEAM01/evt or nlbot/classA/TEAM01/cmd
-          if (parts.length < 4) return; // Ignore malformed topics
-          
-          const teamTopicBase = parts.slice(0, 3).join('/'); // e.g., "nlbot/classA/TEAM01"
-          const suffix = parts[3]; // e.g., "evt" or "cmd"
-          const isHeartbeat = msg.startsWith('SYS heartbeat');
-
-          // Ignore commands sent by admin to avoid logging them twice
-          if (suffix === 'cmd') return; 
-
-          if (!teams[teamTopicBase]) teams[teamTopicBase] = { status:'active', lastSeen:Date.now(), lastBeat:0 };
-          teams[teamTopicBase].status = 'active';
-          teams[teamTopicBase].lastSeen = Date.now();
-          if (isHeartbeat) teams[teamTopicBase].lastBeat = Date.now();
-          renderTeamList();
-
-          if (suffix === 'evt' && !showEvtChk.checked) return;
-          if (suffix === 'cmd' && !showCmdChk.checked) return;
-
-          if (msg.startsWith('SYS bridge online')) {
-              logMessage(teamTopicBase, 'ESP32 bridge rebooted', 'system', false);
-          }
-
-          logMessage(teamTopicBase, msg, suffix, isHeartbeat);
-      });
-  }
-
-  function logMessage(team, msg, suffix = 'evt', isHeartbeat = false) {
-      const entry = document.createElement('div');
-      entry.className = 'log-entry';
-      entry.dataset.teamTopic = team;
-      entry.dataset.suffix = suffix;
-      entry.dataset.heartbeat = isHeartbeat ? '1' : '0';
-
-      if (team === 'System') entry.classList.add('log-entry-system');
-      else if (team === 'ADMIN-BROADCAST' || team === 'ADMIN-SPECIFIC') entry.classList.add('log-entry-broadcast');
-
-      const teamSpan = document.createElement('span');
-      teamSpan.className = 'log-team';
-      // Display only the last part of the topic as team name, or the full name for admin messages
-      const displayName = team.includes('/') ? team.split('/').pop() : team;
-      teamSpan.textContent = `[${displayName}]: `;
-
-      const payloadSpan = document.createElement('span');
-      payloadSpan.className = 'log-payload';
-      payloadSpan.textContent = msg;
-
-      entry.append(teamSpan, payloadSpan);
-      logContainer.appendChild(entry);
-
-      if (shouldHideEntry(entry)) entry.classList.add('hidden');
-
-      if (logContainer.children.length > MAX_LOG_ENTRIES) {
-        logContainer.removeChild(logContainer.firstElementChild);
+      function setStatus(state, message) {
+        statusLabel.classList.remove('is-ready', 'is-stale', 'is-empty');
+        const templates = {
+          ready: `<i class="bi bi-unlock"></i> ${message || 'Credentials ready'}`,
+          stale: `<i class="bi bi-hourglass-split"></i> ${message || 'Verify credentials'}`,
+          empty: `<i class="bi bi-plug"></i> ${message || 'Awaiting configuration'}`
+        };
+        const className = state === 'ready' ? 'is-ready' : state === 'stale' ? 'is-stale' : 'is-empty';
+        statusLabel.classList.add(className);
+        statusLabel.innerHTML = templates[state] || templates.empty;
       }
 
-      // Scroll to bottom only if not currently scrolled up
-      if (logContainer.scrollHeight - logContainer.scrollTop < logContainer.clientHeight + 100) {
-        logContainer.scrollTop = logContainer.scrollHeight;
-      }
-  }
-    
-  function shouldHideEntry(entry) {
-    const team = entry.dataset.teamTopic;
-    const suffix = entry.dataset.suffix || 'evt';
-    
-    const isAdminMsg = ['System', 'ADMIN-BROADCAST', 'ADMIN-SPECIFIC'].includes(team);
-
-    if (currentFilter && !isAdminMsg && team !== currentFilter) return true;
-    if (suffix === 'evt' && !showEvtChk.checked) return true;
-    if (suffix === 'cmd' && !showCmdChk.checked) return true;
-    return false;
-  }
-
-  function applyFilters() {
-       [...logContainer.children].forEach(entry => {
-        if (shouldHideEntry(entry)) entry.classList.add('hidden');
-        else entry.classList.remove('hidden');
-      });
-  }
-
-  function renderTeamList() {
-      teamStatusContainer.innerHTML = '';
-      const keys = Object.keys(teams).sort();
-      if (keys.length === 0) {
-        teamCountSpan.textContent = '0';
-        activeCountSpan.textContent = '0';
-        inactiveCountSpan.textContent = '0';
-        teamStatusContainer.innerHTML = '<li class="empty-state">No teams online yet. Waiting for first message...</li>';
-        return;
+      function loadStoredConfig() {
+        const raw = localStorage.getItem(CONFIG_KEY);
+        if (!raw) { return null; }
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
       }
 
-      const now = Date.now();
-      const activeTeams = keys.filter(k => teams[k].status === 'active').length;
-      const inactiveTeams = keys.length - activeTeams;
-      teamCountSpan.textContent = keys.length;
-      activeCountSpan.textContent = activeTeams;
-      inactiveCountSpan.textContent = inactiveTeams;
+      function applyConfig(config) {
+        const active = { ...DEFAULT_CONFIG, ...(config || {}) };
+        Object.entries(inputs).forEach(([key, input]) => {
+          if (!input) { return; }
+          input.value = active[key] ?? '';
+        });
 
-      keys.forEach(teamTopicBase => {
-          const t = teams[teamTopicBase];
-          const li = document.createElement('li');
-          li.dataset.teamTopicBase = teamTopicBase;
-          if (teamTopicBase === currentFilter) li.classList.add('filtered');
+        const savedAt = config?.savedAt ? formatTimestamp(config.savedAt) : null;
+        if (savedAt) {
+          lastSavedLabel.textContent = `Last saved: ${savedAt}`;
+        } else {
+          lastSavedLabel.textContent = 'Last saved: not saved yet';
+        }
 
-          const teamName = teamTopicBase.split('/').pop();
-          const statusClass = t.status === 'active' ? 'status-active' : 'status-inactive';
-          const beatClass = (now - (t.lastBeat || 0) < 800) ? 'beat' : '';
+        if (!config) {
+          setStatus('empty', 'Awaiting configuration');
+          if (clearBtn) { clearBtn.disabled = true; }
+        } else {
+          const savedTime = config.savedAt ? new Date(config.savedAt).getTime() : null;
+          const isStale = savedTime ? (Date.now() - savedTime) > (1000 * 60 * 60 * 12) : false;
+          setStatus(isStale ? 'stale' : 'ready', isStale ? 'Verify credentials' : 'Credentials ready');
+          if (clearBtn) { clearBtn.disabled = false; }
+        }
+      }
 
-          li.innerHTML = `
-              <div class="team-item">
-                  <div class="team-item-main">
-                      <span class="status-dot ${statusClass} ${beatClass}"></span>
-                      <div class="team-details">
-                          <span class="team-name">${teamName}</span>
-                          <span class="last-seen">Last seen ${new Date(t.lastSeen).toLocaleTimeString()}</span>
-                      </div>
-                  </div>
-                  <i class="bi-chevron-right"></i>
+      function gatherConfig() {
+        return {
+          brokerUrl: inputs.brokerUrl?.value.trim() ?? '',
+          rootTopic: inputs.rootTopic?.value.trim() ?? '',
+          username: inputs.username?.value.trim() ?? '',
+          password: inputs.password?.value ?? '',
+          clientId: inputs.clientId?.value.trim() ?? '',
+          keepAlive: inputs.keepAlive?.value.trim() ?? '',
+          savedAt: new Date().toISOString()
+        };
+      }
+
+      function persistConfig() {
+        const payload = gatherConfig();
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(payload));
+        applyConfig(payload);
+        return payload;
+      }
+
+      function handleConnectClick() {
+        const saved = persistConfig();
+        sessionStorage.setItem(sessionConnectKey, saved.savedAt);
+        document.dispatchEvent(new CustomEvent('mqtt:config-saved', { detail: saved }));
+        document.dispatchEvent(new CustomEvent('mqtt:connect-requested', { detail: saved }));
+      }
+
+      function handleTestClick() {
+        const saved = persistConfig();
+        document.dispatchEvent(new CustomEvent('mqtt:config-saved', { detail: saved }));
+      }
+
+      function handleDisconnectClick() {
+        setStatus('empty', 'Disconnected from broker');
+        stopMqttClient();
+        const saved = loadStoredConfig();
+        if (saved) {
+          lastSavedLabel.textContent = saved.savedAt ? `Last saved: ${formatTimestamp(saved.savedAt)}` : 'Last saved: not saved yet';
+        }
+      }
+
+      function handleClearClick() {
+        if (clearBtn?.disabled) { return; }
+        const confirmed = confirm('Remove the saved MQTT credentials from this device?');
+        if (!confirmed) { return; }
+        localStorage.removeItem(CONFIG_KEY);
+        sessionStorage.removeItem(sessionConnectKey);
+        applyConfig(null);
+        document.dispatchEvent(new Event('mqtt:config-cleared'));
+      }
+
+      const storedConfig = loadStoredConfig();
+      applyConfig(storedConfig);
+
+      if (connectBtn) {
+        connectBtn.addEventListener('click', () => {
+          handleConnectClick();
+        });
+      }
+
+      if (testBtn) {
+        testBtn.addEventListener('click', () => {
+          handleTestClick();
+        });
+      }
+
+      if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', () => {
+          handleDisconnectClick();
+        });
+      }
+
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          handleClearClick();
+        });
+      }
+
+      // --- Command Center Interactions ---
+      const commandFeedback = document.getElementById('command-feedback');
+      const commandFeedbackText = document.getElementById('command-feedback-text');
+      const broadcastInput = document.getElementById('broadcast-command-input');
+      const broadcastBtn = document.getElementById('broadcast-submit');
+      const selectedInput = document.getElementById('selected-command-input');
+      const selectedBtn = document.getElementById('selected-submit');
+      const presetButtons = document.querySelectorAll('#broadcast-presets .command-chip');
+      const broadcastOnlineCount = document.getElementById('broadcast-online-count');
+      const watchlistCount = document.getElementById('watchlist-count');
+      const watchlistTags = document.getElementById('watchlist-tags');
+      const watchlistMetaText = document.getElementById('watchlist-meta-text');
+      const clearWatchlistBtn = document.getElementById('clear-watchlist-btn');
+      const selectedSummaryTitle = document.getElementById('selected-summary-title');
+      const selectedSummaryList = document.getElementById('selected-summary-list');
+      const selectedSummaryNote = document.getElementById('selected-summary-note');
+      const teamCountLabel = document.getElementById('team-count-label');
+      const logContainer = document.getElementById('log-items');
+      const logFilterInputs = document.querySelectorAll('[data-log-filter]');
+      const clearLogButton = document.getElementById('clear-log-btn');
+      const logWatchlistLabel = document.getElementById('log-watchlist-label');
+      const logWatchlistTags = document.getElementById('log-watchlist-tags');
+      const logTitle = document.getElementById('log-panel-title');
+      const teamListEl = document.getElementById('teams-list');
+      let teamEmptyEl = document.getElementById('teams-empty');
+      let teamCardMap = {};
+      let mqttClientInstance = null;
+      let mqttCurrentConfig = null;
+      let logEntries = [];
+      const LOG_MAX_ITEMS = 200;
+
+      function normalizeTeamKey(raw) {
+        if (!raw) { return ''; }
+        return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      }
+
+      function sanitizeTopicPath(value) {
+        if (!value) { return ''; }
+        let result = String(value).trim();
+        if (!result) { return ''; }
+        result = result.replace(/^[\s/]+/, '').replace(/\s+/g, '').replace(/\/+/g, '/');
+        result = result.replace(/\/$/, '');
+        while (/\/(cmd|evt)$/i.test(result)) {
+          result = result.replace(/\/(cmd|evt)$/i, '');
+        }
+        const wildcardIndex = result.search(/[#+]/);
+        if (wildcardIndex !== -1) {
+          result = result.slice(0, wildcardIndex);
+          result = result.replace(/\/$/, '');
+        }
+        return result;
+      }
+
+      function topicWithCommandSuffix(base) {
+        const clean = sanitizeTopicPath(base);
+        return clean ? `${clean}/cmd` : '';
+      }
+
+      function toTopicSegment(value) {
+        if (!value) { return ''; }
+        return String(value).trim().replace(/[^A-Za-z0-9_-]/g, '').toUpperCase();
+      }
+
+      const accentPalette = ['#6366f1', '#22d3ee', '#f97316', '#10b981', '#ec4899', '#38bdf8', '#a855f7', '#facc15'];
+      let accentIndex = 0;
+
+      function getAccentColor() {
+        const color = accentPalette[accentIndex % accentPalette.length];
+        accentIndex += 1;
+        return color;
+      }
+
+      function registerTeamCard(card) {
+        if (!card) { return; }
+        const teamId = (card.dataset.team || '').toUpperCase();
+        const simpleId = normalizeTeamKey(teamId);
+        if (teamId) { teamCardMap[teamId] = card; }
+        if (simpleId) { teamCardMap[simpleId] = card; }
+        const sanitizedBase = sanitizeTopicPath(card.dataset.topicBase || '');
+        if (sanitizedBase !== (card.dataset.topicBase || '')) {
+          card.dataset.topicBase = sanitizedBase;
+        }
+        const topicBaseKey = sanitizedBase.toUpperCase();
+        if (topicBaseKey) { teamCardMap[topicBaseKey] = card; }
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (!card.dataset.registered && checkbox) {
+          checkbox.addEventListener('change', () => updateWatchlist());
+          card.dataset.registered = '1';
+        }
+      }
+
+      function ensureTeamsPlaceholder() {
+        if (!teamListEl) { return; }
+        if (teamListEl.querySelector('.team-card')) { return; }
+        if (!teamListEl.querySelector('.teams-panel__empty')) {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'teams-panel__empty';
+          placeholder.id = 'teams-empty';
+          placeholder.textContent = 'No teams detected yet. Robots will appear here once they come online.';
+          teamListEl.appendChild(placeholder);
+          teamEmptyEl = placeholder;
+        }
+      }
+
+      function createTeamCard(teamId, topicBase) {
+        if (!teamListEl) { return null; }
+        const normalized = normalizeTeamKey(teamId);
+        const existing = findTeamCardByTopicId(teamId);
+        if (existing) {
+          if (topicBase) { existing.dataset.topicBase = sanitizeTopicPath(topicBase); registerTeamCard(existing); }
+          return existing;
+        }
+        const accent = getAccentColor();
+        const sanitizedRoot = sanitizeTopicPath(mqttCurrentRootTopic);
+        const sanitizedTopicBase = sanitizeTopicPath(topicBase);
+        const fallbackSegment = toTopicSegment(teamId);
+        const resolvedBase = sanitizedTopicBase || (sanitizedRoot && fallbackSegment ? `${sanitizedRoot}/${fallbackSegment}` : '');
+        const card = document.createElement('label');
+        card.className = 'team-card status-active';
+        card.dataset.team = teamId;
+        card.style.setProperty('--accent', accent);
+        card.dataset.defaultStateLabel = 'Online';
+        card.dataset.defaultStateClass = 'team-card__state team-card__state--online';
+        card.dataset.topicBase = resolvedBase;
+        card.innerHTML = `
+            <input type="checkbox">
+            <div class="team-card__content">
+              <div class="team-card__row">
+                <div class="team-card__identity">
+                  <span class="team-card__status-dot"></span>
+                  ${escapeHtml(teamId)}
+                </div>
+                <span class="team-card__state team-card__state--online" data-role="state-label">Online</span>
               </div>
-          `;
+            </div>
+        `;
+        if (teamEmptyEl) {
+          teamEmptyEl.remove();
+          teamEmptyEl = null;
+        }
+        teamListEl.appendChild(card);
+        registerTeamCard(card);
+        updateTeamCount();
+        updateOnlineCount();
+        return card;
+      }
 
-          li.addEventListener('click', () => {
-              currentTargetTeamTopic = teamTopicBase;
-              modalTeamNameSpan.textContent = teamName;
-              specificCommandModal.show();
-              
-              currentFilter = teamTopicBase;
-              document.querySelectorAll('.team-status-list li').forEach(el => el.classList.remove('filtered'));
-              li.classList.add('filtered');
-              applyFilters();
+      function findTeamCardByTopicId(topicId) {
+        if (!topicId) { return null; }
+        const variants = [];
+        const upper = topicId.toUpperCase();
+        variants.push(upper);
+        variants.push(normalizeTeamKey(upper));
+        if (upper.includes('-')) {
+          variants.push(upper.replace(/-/g, ''));
+        }
+        const trailingDigits = upper.match(/(\d{1,4})$/);
+        if (trailingDigits && trailingDigits[1]) {
+          const rawSuffix = trailingDigits[1];
+          const suffixNoLeadingZero = rawSuffix.replace(/^0+/, '') || rawSuffix;
+          variants.push(`TEAM-${suffixNoLeadingZero}`);
+          variants.push(`TEAM${suffixNoLeadingZero}`);
+          if (rawSuffix !== suffixNoLeadingZero) {
+            variants.push(`TEAM-${rawSuffix}`);
+            variants.push(`TEAM${rawSuffix}`);
+          }
+        }
+        for (const key of variants) {
+          if (key && teamCardMap[key]) { return teamCardMap[key]; }
+        }
+        return null;
+      }
+
+      function accentToRgba(hex, alpha) {
+        if (!hex) { return `rgba(99,102,241,${alpha})`; }
+        const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        const fullHex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(fullHex);
+        if (!result) { return `rgba(99,102,241,${alpha})`; }
+        const r = parseInt(result[1], 16);
+        const g = parseInt(result[2], 16);
+        const b = parseInt(result[3], 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function escapeHtml(value) {
+        if (value == null) { return ''; }
+        return String(value).replace(/[&<>"']/g, ch => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        }[ch] || ch));
+      }
+
+      function buildTeamDescriptor(card) {
+        const identity = card.querySelector('.team-card__identity');
+        const fullText = identity ? identity.textContent.trim() : '';
+        const [rawId, rawName] = fullText.split('·').map(part => part?.trim());
+        const teamId = card.dataset.team || rawId || 'TEAM';
+        const name = card.dataset.name || rawName || '';
+        const label = name ? `${teamId} (${name})` : teamId;
+        const accent = card.style.getPropertyValue('--accent') || '#6366f1';
+        const topicBase = card.dataset.topicBase || '';
+        return { teamId, name, label, accent, topicBase };
+      }
+
+      function getAllTeamCards() {
+        return teamListEl ? Array.from(teamListEl.querySelectorAll('.team-card')) : [];
+      }
+      const metricElements = {
+        robotsValue: document.getElementById('metric-robots-online'),
+        robotsSub: document.getElementById('metric-robots-sub'),
+        alertsValue: document.getElementById('metric-alerts'),
+        alertsSub: document.getElementById('metric-alerts-sub'),
+        commandsValue: document.getElementById('metric-commands'),
+        commandsSub: document.getElementById('metric-commands-sub'),
+        ackValue: document.getElementById('metric-ack-rate'),
+        ackSub: document.getElementById('metric-ack-sub'),
+      };
+
+      const metricState = {
+        commandsBroadcast: 0,
+        commandsTargeted: 0,
+        ackEvents: 0,
+        warnEvents: 0,
+      };
+
+      function refreshMetrics(overrides = {}) {
+        const cards = getAllTeamCards();
+        const totalTeams = typeof overrides.total === 'number' ? overrides.total : cards.length;
+        let onlineTeams = overrides.online;
+        if (typeof onlineTeams !== 'number') {
+          onlineTeams = cards.filter(card => !card.classList.contains('status-offline')).length;
+        }
+        const alertTeams = cards.filter(card => card.classList.contains('status-error')).length;
+        const totalCommands = metricState.commandsBroadcast + metricState.commandsTargeted;
+        const commandLabel = Number.isFinite(totalCommands) ? totalCommands : 0;
+
+        if (metricElements.robotsValue) {
+          const onlineLabel = Number.isFinite(onlineTeams) ? onlineTeams : 0;
+          metricElements.robotsValue.textContent = onlineLabel.toString();
+          if (metricElements.robotsSub) {
+            const offlineTeams = Math.max(totalTeams - onlineLabel, 0);
+            metricElements.robotsSub.textContent = totalTeams
+              ? `${offlineTeams} offline · ${totalTeams} total`
+              : 'Waiting for devices';
+          }
+        }
+
+        if (metricElements.alertsValue) {
+          const alertLabel = Number.isFinite(alertTeams) ? alertTeams : 0;
+          metricElements.alertsValue.textContent = alertLabel.toString();
+          if (metricElements.alertsSub) {
+            metricElements.alertsSub.textContent = alertLabel
+              ? `${alertLabel} active issue${alertLabel === 1 ? '' : 's'}`
+              : 'No alerts detected';
+          }
+        }
+
+        if (metricElements.commandsValue) {
+          metricElements.commandsValue.textContent = commandLabel.toString();
+          if (metricElements.commandsSub) {
+            metricElements.commandsSub.textContent = commandLabel
+              ? `${metricState.commandsTargeted} targeted · ${metricState.commandsBroadcast} broadcast`
+              : 'No commands sent yet';
+          }
+        }
+
+        if (metricElements.ackValue) {
+          if (!commandLabel) {
+            metricElements.ackValue.textContent = '--';
+            if (metricElements.ackSub) {
+              metricElements.ackSub.textContent = 'Awaiting first ACK';
+            }
+          } else {
+            const ackRate = Math.min(100, Math.round((metricState.ackEvents / commandLabel) * 100));
+            metricElements.ackValue.textContent = `${ackRate}%`;
+            if (metricElements.ackSub) {
+              metricElements.ackSub.textContent = `ACK events ${metricState.ackEvents} · WARN ${metricState.warnEvents}`;
+            }
+          }
+        }
+      }
+
+      function resetMetricState() {
+        metricState.commandsBroadcast = 0;
+        metricState.commandsTargeted = 0;
+        metricState.ackEvents = 0;
+        metricState.warnEvents = 0;
+        refreshMetrics({ online: 0, total: 0 });
+      }
+
+      resetMetricState();
+
+      function getSelectedCards() {
+        if (!teamListEl) { return []; }
+        return Array.from(teamListEl.querySelectorAll('.team-card input[type="checkbox"]:checked')).map(cb => cb.closest('.team-card'));
+      }
+
+      function showCommandFeedback(message, tone = 'info') {
+        if (!commandFeedback || !commandFeedbackText) { return; }
+        commandFeedback.classList.remove('is-hidden', 'command-feedback--info', 'command-feedback--success', 'command-feedback--warn');
+        const toneClass = tone === 'success'
+          ? 'command-feedback--success'
+          : tone === 'warn'
+            ? 'command-feedback--warn'
+            : 'command-feedback--info';
+        commandFeedback.classList.add(toneClass);
+        const icon = commandFeedback.querySelector('i');
+        if (icon) {
+          icon.className = tone === 'success'
+            ? 'bi bi-check-circle'
+            : tone === 'warn'
+              ? 'bi bi-exclamation-triangle'
+              : 'bi bi-info-circle';
+        }
+        commandFeedbackText.textContent = message;
+      }
+
+      function updateTargetButton(count) {
+        if (!selectedBtn) { return; }
+        const safeCount = typeof count === 'number' ? count : getSelectedCards().length;
+        selectedBtn.disabled = safeCount === 0;
+        selectedBtn.innerHTML = `<i class="bi bi-send-arrow-up"></i> Send to selected (${safeCount})`;
+      }
+
+      function updateWatchlist() {
+        if (!watchlistCount || !watchlistTags || !watchlistMetaText || !selectedSummaryTitle || !selectedSummaryList || !selectedSummaryNote) {
+          return;
+        }
+
+        const selected = getSelectedCards().map(buildTeamDescriptor);
+        watchlistCount.textContent = selected.length;
+        watchlistTags.innerHTML = '';
+        selectedSummaryList.innerHTML = '';
+        if (logWatchlistTags) {
+          logWatchlistTags.innerHTML = '';
+        }
+        if (clearWatchlistBtn) {
+          clearWatchlistBtn.disabled = selected.length === 0;
+        }
+
+        if (!selected.length) {
+          const placeholderTag = document.createElement('span');
+          placeholderTag.className = 'watchlist-tag watchlist-tag--empty';
+          placeholderTag.textContent = 'No teams selected';
+          watchlistTags.appendChild(placeholderTag);
+          watchlistMetaText.textContent = 'Select teams below to focus their events here in real-time';
+          selectedSummaryTitle.textContent = 'No teams selected';
+          selectedSummaryNote.textContent = 'Select teams to add them here before sending the command.';
+          if (logWatchlistTags) {
+            const logTag = document.createElement('span');
+            logTag.className = 'watchlist-tag watchlist-tag--empty';
+            logTag.textContent = 'All teams';
+            logWatchlistTags.appendChild(logTag);
+          }
+          if (logWatchlistLabel) {
+            logWatchlistLabel.textContent = 'Currently showing all teams';
+          }
+          if (logTitle) {
+            logTitle.textContent = 'Live Log: All Teams';
+          }
+        } else {
+          selected.forEach(info => {
+            const tag = document.createElement('span');
+            tag.className = 'watchlist-tag';
+            tag.textContent = info.teamId;
+            tag.style.setProperty('--tag-color', info.accent);
+            tag.style.setProperty('--tag-bg', accentToRgba(info.accent, 0.16));
+            tag.style.setProperty('--tag-border', accentToRgba(info.accent, 0.32));
+            watchlistTags.appendChild(tag);
+
+            const item = document.createElement('span');
+            item.className = 'selected-summary__item';
+            item.textContent = info.label;
+            selectedSummaryList.appendChild(item);
+
+            if (logWatchlistTags) {
+              const logTag = document.createElement('span');
+              logTag.className = 'watchlist-tag';
+              logTag.textContent = info.teamId;
+              logTag.style.setProperty('--tag-color', info.accent);
+              logTag.style.setProperty('--tag-bg', accentToRgba(info.accent, 0.16));
+              logTag.style.setProperty('--tag-border', accentToRgba(info.accent, 0.32));
+              logWatchlistTags.appendChild(logTag);
+            }
           });
 
-          teamStatusContainer.appendChild(li);
-      });
-  }
+          watchlistMetaText.textContent = `Monitoring ${selected.length} team(s) — use the command panel for targeted actions.`;
+          selectedSummaryTitle.textContent = `Selected teams (${selected.length})`;
+          selectedSummaryNote.textContent = 'Only the teams listed here will receive the targeted command.';
+          if (logWatchlistLabel) {
+            logWatchlistLabel.textContent = `Filtering ${selected.length} team(s)`;
+          }
+          if (logTitle) {
+            const teamList = selected.map(info => info.teamId).join(', ');
+            logTitle.textContent = `Live Log: ${teamList}`;
+          }
+        }
 
-  // Mark inactive after timeout
-  setInterval(() => {
-    const now = Date.now();
-    let changed = false;
-    for (const k in teams) {
-      if (teams[k].status === 'active' && now - teams[k].lastSeen > INACTIVE_TIMEOUT_MS) {
-        teams[k].status = 'inactive'; changed = true;
+        updateTargetButton(selected.length);
       }
-    }
-    if (changed) renderTeamList();
-  }, 5000);
 
-  // Initialize Bootstrap tooltips for controls
-  const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
-</script>
+      function updateOnlineCount() {
+        const onlineTeams = getAllTeamCards().filter(card => !card.classList.contains('status-offline')).length;
+        if (broadcastOnlineCount) {
+          broadcastOnlineCount.textContent = onlineTeams;
+        }
+        refreshMetrics({ online: onlineTeams });
+      }
+
+      function updateTeamCount() {
+        const totalTeams = getAllTeamCards().length;
+        if (teamCountLabel) {
+          teamCountLabel.textContent = totalTeams.toString();
+        }
+        refreshMetrics({ total: totalTeams });
+      }
+
+      function formatTimeLabel(date) {
+        if (!date) { return ''; }
+        return new Intl.DateTimeFormat('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).format(date);
+      }
+
+      function updateTeamCardStatus(card, event, timestamp) {
+        if (!card || !event) { return; }
+        card.classList.remove('status-error', 'status-offline', 'status-idle');
+        const stateLabel = card.querySelector('[data-role="state-label"]');
+        if (stateLabel) {
+          const defaultText = card.dataset.defaultStateLabel || 'Online';
+          const defaultClass = card.dataset.defaultStateClass || 'team-card__state team-card__state--online';
+          let nextText = defaultText;
+          let nextClass = defaultClass;
+          if (event.type === 'WARN') {
+            nextText = 'Issue';
+            nextClass = 'team-card__state team-card__state--issue';
+            card.classList.add('status-error');
+          } else if (event.type === 'SYS') {
+            const msg = (event.message || '').toLowerCase();
+            if (msg.includes('disconnect')) {
+              nextText = 'Disconnected';
+              nextClass = 'team-card__state team-card__state--offline';
+              card.classList.add('status-offline');
+            } else if (msg.includes('connecting')) {
+              nextText = 'Connecting';
+              nextClass = 'team-card__state team-card__state--waiting';
+              card.classList.add('status-idle');
+            } else if (msg.includes('connected')) {
+              nextText = 'Online';
+              nextClass = 'team-card__state team-card__state--online';
+              card.classList.add('status-active');
+            }
+          } else {
+            nextText = event.type === 'ACK' || event.type === 'DONE' ? 'Online' : defaultText;
+            nextClass = 'team-card__state team-card__state--online';
+            card.classList.add('status-active');
+          }
+          stateLabel.className = nextClass;
+          stateLabel.textContent = nextText;
+        }
+        card.dataset.lastEventAt = timestamp ? timestamp.toISOString() : '';
+      }
+
+      function getActiveLogFilters() {
+        const defaults = ['ACK', 'DONE', 'WARN', 'DIST', 'SYS'];
+        if (!logFilterInputs || !logFilterInputs.length) {
+          return new Set(defaults);
+        }
+        const active = new Set();
+        logFilterInputs.forEach(input => {
+          if (input.checked) {
+            active.add(input.dataset.logFilter);
+          }
+        });
+        if (!active.size) {
+          defaults.forEach(t => active.add(t));
+        }
+        return active;
+      }
+
+      function publishMqttCommand(topic, command) {
+        if (!mqttClientInstance || !mqttClientInstance.connected) {
+          showCommandFeedback('MQTT is not connected', 'warn');
+          return false;
+        }
+        try {
+          mqttClientInstance.publish(topic, `${command}\n`, { qos: 1 });
+          return true;
+        } catch (error) {
+          console.error('[MQTT] publish error', error);
+          showCommandFeedback(`Failed to publish to ${topic}: ${error.message || error}`, 'warn');
+          return false;
+        }
+      }
+
+      function renderLogEntries() {
+        if (!logContainer) { return; }
+        logContainer.innerHTML = '';
+        const activeFilters = getActiveLogFilters();
+        const visibleEntries = logEntries.filter(entry => activeFilters.has(entry.type));
+        if (!visibleEntries.length) {
+          const empty = document.createElement('div');
+          empty.className = 'log-empty';
+          empty.textContent = logEntries.length
+            ? 'No log entries match the selected filters.'
+            : 'Waiting for events...';
+          logContainer.appendChild(empty);
+          return;
+        }
+
+        visibleEntries.forEach(entry => {
+          const item = document.createElement('div');
+          item.className = `log-item log-item--${entry.type.toLowerCase()}`;
+          const messageText = entry.message || entry.description || '';
+          item.innerHTML = `
+            <div class="log-item__left">
+              <span class="log-item__team">[${escapeHtml(entry.teamLabel)}]</span>
+              <span class="log-item__message">${escapeHtml(messageText)}</span>
+              ${entry.meta ? `<span class="log-item__meta">${escapeHtml(entry.meta)}</span>` : ''}
+            </div>
+            <span class="log-item__time">${escapeHtml(entry.timeLabel)}</span>
+          `;
+          const teamEl = item.querySelector('.log-item__team');
+          if (teamEl && entry.accent) {
+            teamEl.style.color = entry.accent;
+          }
+          logContainer.appendChild(item);
+        });
+      }
+
+      function addLogEntry(entry) {
+        if (!entry) { return; }
+        entry.type = (entry.type || '').toUpperCase();
+        if (!entry.timeLabel && entry.time instanceof Date) {
+          entry.timeLabel = formatTimeLabel(entry.time);
+        }
+        entry.meta = '';
+        logEntries.unshift(entry);
+        if (logEntries.length > LOG_MAX_ITEMS) {
+          logEntries = logEntries.slice(0, LOG_MAX_ITEMS);
+        }
+        renderLogEntries();
+      }
+
+      function parseRobotEvent(payload) {
+        if (!payload) { return null; }
+        const trimmed = payload.trim();
+        if (!trimmed) { return null; }
+        const [head, ...rest] = trimmed.split(' ');
+        const type = (head || '').toUpperCase();
+        const message = rest.join(' ').trim();
+        return {
+          type,
+          raw: trimmed,
+          message,
+          command: ['ACK', 'DONE'].indexOf(type) >= 0 ? message : '',
+        };
+      }
+
+      function handleMqttMessage(topic, payload) {
+        const parts = topic.split('/').filter(Boolean);
+        if (parts.length < 2) { return; }
+        const evtSegment = parts[parts.length - 1].toLowerCase();
+        if (evtSegment !== 'evt') { return; }
+        const teamKey = parts[parts.length - 2];
+        const event = parseRobotEvent(payload);
+        if (!event) { return; }
+        const timestamp = new Date();
+        const topicBase = parts.slice(0, -1).join('/');
+        let card = findTeamCardByTopicId(teamKey) || findTeamCardByTopicId(topicBase);
+        if (!card) {
+          card = createTeamCard(teamKey, topicBase);
+        } else {
+          card.dataset.topicBase = sanitizeTopicPath(topicBase);
+          registerTeamCard(card);
+        }
+        if (card && ['ACK', 'DONE', 'WARN', 'DIST'].indexOf(event.type) >= 0) {
+          updateTeamCardStatus(card, event, timestamp);
+        }
+        const identity = card ? (card.querySelector('.team-card__identity')?.textContent.trim() || teamKey) : teamKey;
+        const accent = card?.style?.getPropertyValue('--accent') || (event.type === 'SYS' ? '#818cf8' : '#6366f1');
+        const timeLabel = formatTimeLabel(timestamp);
+        const rawLine = event.raw || `${event.type}${event.message ? ' ' + event.message : ''}`;
+        addLogEntry({
+          teamKey,
+          teamLabel: identity || teamKey,
+          type: event.type,
+          message: rawLine,
+          meta: '',
+          raw: event.raw,
+          time: timestamp,
+          timeLabel,
+          accent,
+        });
+        if (event.type === 'WARN') {
+          metricState.warnEvents += 1;
+        } else if (event.type === 'ACK') {
+          metricState.ackEvents += 1;
+        }
+        refreshMetrics();
+      }
+
+      function startMqttClient(config) {
+        if (typeof mqtt === 'undefined') {
+          showCommandFeedback('MQTT library is not available on this page', 'warn');
+          return;
+        }
+        stopMqttClient();
+        if (!config || !config.brokerUrl) {
+          showCommandFeedback('Please provide a Broker URL before connecting', 'warn');
+          return;
+        }
+
+        mqttCurrentConfig = config;
+        const sanitizedRoot = sanitizeTopicPath(config.rootTopic || '');
+        mqttCurrentRootTopic = sanitizedRoot;
+        const options = {
+          reconnectPeriod: 1500,
+          clean: true,
+        };
+        if (config.username) {
+          options.username = config.username;
+          options.password = config.password || '';
+        }
+        if (config.clientId) {
+          options.clientId = config.clientId;
+        }
+        const keepAlive = parseInt(config.keepAlive, 10);
+        if (!Number.isNaN(keepAlive) && keepAlive > 0) {
+          options.keepalive = keepAlive;
+        }
+
+        try {
+          mqttClientInstance = mqtt.connect(config.brokerUrl, options);
+        } catch (error) {
+          console.error('[MQTT] connect error', error);
+          showCommandFeedback(`Failed to connect to MQTT: ${error.message || error}`, 'warn');
+          mqttClientInstance = null;
+          return;
+        }
+
+        const baseTopic = sanitizedRoot;
+
+        mqttClientInstance.on('connect', () => {
+          showCommandFeedback('MQTT connected, listening for events...', 'success');
+          if (baseTopic) {
+            const subscribeTopic = `${baseTopic}/#`;
+            mqttClientInstance.subscribe(subscribeTopic, err => {
+              if (err) {
+                showCommandFeedback(`Subscribe failed: ${err.message || err}`, 'warn');
+              } else {
+                showCommandFeedback(`Subscribed to ${subscribeTopic}`, 'info');
+              }
+            });
+          } else {
+            showCommandFeedback('Please set a root topic to subscribe', 'warn');
+          }
+        });
+
+        mqttClientInstance.on('message', (topic, payloadBuffer) => {
+          const payload = payloadBuffer.toString();
+          handleMqttMessage(topic, payload);
+        });
+
+        mqttClientInstance.on('error', err => {
+          console.error('[MQTT] error', err);
+          showCommandFeedback(`MQTT error: ${err.message || err}`, 'warn');
+        });
+
+        mqttClientInstance.on('close', () => {
+          showCommandFeedback('Disconnected from MQTT', 'info');
+        });
+      }
+
+      function stopMqttClient() {
+        if (mqttClientInstance) {
+          try {
+            mqttClientInstance.end(true);
+          } catch (e) {
+            console.warn('MQTT disconnect error', e);
+          }
+          mqttClientInstance = null;
+        }
+        mqttCurrentRootTopic = '';
+      }
+
+      function handleBroadcastSubmit() {
+        if (!broadcastInput) { return; }
+        const command = broadcastInput.value.trim().toUpperCase();
+        if (!command) {
+          showCommandFeedback('Please enter a command before broadcasting', 'warn');
+          broadcastInput.focus();
+          return;
+        }
+        const recipients = getAllTeamCards()
+          .filter(card => !card.classList.contains('status-offline'))
+          .map(buildTeamDescriptor);
+        const sanitizedRoot = sanitizeTopicPath(mqttCurrentRootTopic);
+        const normalizedRoot = (sanitizedRoot || '').toUpperCase();
+        const topics = new Set();
+        const parentTopics = new Set();
+        const resolvedRecipients = [];
+
+        const rootCommandTopic = topicWithCommandSuffix(sanitizedRoot);
+        if (rootCommandTopic) { topics.add(rootCommandTopic); }
+
+        recipients.forEach(info => {
+          const resolved = { ...info };
+          let base = sanitizeTopicPath(info.topicBase);
+          if (!base && sanitizedRoot) {
+            const fallbackSegment = toTopicSegment(info.teamId);
+            if (fallbackSegment) {
+              base = `${sanitizedRoot}/${fallbackSegment}`;
+            }
+          }
+          resolved.topicBase = base;
+          resolvedRecipients.push(resolved);
+          if (!base) { return; }
+
+          const parent = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '';
+          if (parent) {
+            const parentTopic = topicWithCommandSuffix(parent);
+            if (parentTopic && parent.toUpperCase() !== normalizedRoot) {
+              parentTopics.add(parentTopic);
+            }
+          } else {
+            const baseTopic = topicWithCommandSuffix(base);
+            if (baseTopic) { parentTopics.add(baseTopic); }
+          }
+        });
+
+        parentTopics.forEach(topic => { if (topic) { topics.add(topic); } });
+
+        const topicList = Array.from(topics).filter(Boolean);
+        if (topicList.length) {
+          console.debug('[Admin] Broadcast topics', topicList);
+        } else {
+          console.warn('[Admin] Broadcast has no resolved MQTT topics', { sanitizedRoot, recipients: resolvedRecipients });
+        }
+        if (!topicList.length) {
+          showCommandFeedback('No MQTT topics available for broadcast. Check your root topic.', 'warn');
+          return;
+        }
+        let publishCount = 0;
+        topicList.forEach(topic => {
+          if (publishMqttCommand(topic, command)) { publishCount += 1; }
+        });
+        if (!publishCount) {
+          showCommandFeedback('Failed to publish broadcast command. Verify MQTT connectivity.', 'warn');
+          return;
+        }
+        const topicSummary = topicList.join(', ');
+        showCommandFeedback(`Sent "${command}" via ${publishCount} topic${publishCount === 1 ? '' : 's'}: ${topicSummary}`, 'success');
+        broadcastInput.value = '';
+        const detail = { command, teams: resolvedRecipients, topics: topicList, published: publishCount };
+        document.dispatchEvent(new CustomEvent('admin:broadcast-command', { detail }));
+      }
+
+      function handleSelectedSubmit() {
+        if (!selectedInput) { return; }
+        const selectedTeams = getSelectedCards().map(buildTeamDescriptor);
+        if (!selectedTeams.length) {
+          showCommandFeedback('No teams selected for this command', 'warn');
+          return;
+        }
+
+        const command = selectedInput.value.trim().toUpperCase();
+        if (!command) {
+          showCommandFeedback('Please enter a command for the selected teams', 'warn');
+          selectedInput.focus();
+          return;
+        }
+
+        const sanitizedRoot = sanitizeTopicPath(mqttCurrentRootTopic);
+        const topics = new Set();
+        selectedTeams.forEach(team => {
+          let base = sanitizeTopicPath(team.topicBase);
+          if (!base && sanitizedRoot) {
+            const fallbackSegment = toTopicSegment(team.teamId);
+            if (fallbackSegment) {
+              base = `${sanitizedRoot}/${fallbackSegment}`;
+            }
+          }
+          const commandTopic = topicWithCommandSuffix(base);
+          if (commandTopic) {
+            topics.add(commandTopic);
+          }
+        });
+
+        const topicList = Array.from(topics).filter(Boolean);
+        if (topicList.length) {
+          console.debug('[Admin] Targeted topics', topicList, selectedTeams);
+        } else {
+          console.warn('[Admin] Targeted send missing topics', selectedTeams);
+        }
+
+        if (!topicList.length) {
+          showCommandFeedback('Could not resolve MQTT topic for the selected teams. Check their topic configuration.', 'warn');
+          return;
+        }
+
+        let publishCount = 0;
+        topicList.forEach(topic => {
+          if (publishMqttCommand(topic, command)) { publishCount += 1; }
+        });
+
+        if (!publishCount) {
+          showCommandFeedback('Failed to publish command to the selected teams. Verify MQTT connectivity.', 'warn');
+          return;
+        }
+
+        selectedInput.value = '';
+        const teamList = selectedTeams.map(team => team.teamId).join(', ');
+        const detail = { command, teams: selectedTeams, topics: topicList, published: publishCount };
+        const topicSummary = topicList.join(', ');
+        showCommandFeedback(`Sent "${command}" to ${teamList} via ${publishCount} topic${publishCount === 1 ? '' : 's'}: ${topicSummary}`, 'success');
+        document.dispatchEvent(new CustomEvent('admin:selected-command', { detail }));
+      }
+
+      if (broadcastBtn) {
+        broadcastBtn.addEventListener('click', handleBroadcastSubmit);
+      }
+
+      if (selectedBtn) {
+        selectedBtn.addEventListener('click', handleSelectedSubmit);
+      }
+
+      if (broadcastInput) {
+        broadcastInput.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            handleBroadcastSubmit();
+          }
+        });
+      }
+
+      if (selectedInput) {
+        selectedInput.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            handleSelectedSubmit();
+          }
+        });
+      }
+
+      if (presetButtons.length) {
+        presetButtons.forEach(button => {
+          button.addEventListener('click', () => {
+            const command = (button.dataset.command || button.textContent || '').trim();
+            if (!command || !broadcastInput) { return; }
+            broadcastInput.value = command;
+            broadcastInput.focus();
+            showCommandFeedback(`Prefilled command "${command}"`, 'info');
+          });
+        });
+      }
+
+      if (clearWatchlistBtn) {
+        clearWatchlistBtn.addEventListener('click', () => {
+          getAllTeamCards().forEach(card => {
+            const checkbox = card.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+              checkbox.checked = false;
+            }
+          });
+          updateWatchlist();
+          showCommandFeedback('Cleared watchlist', 'info');
+        });
+      }
+
+      if (logFilterInputs && logFilterInputs.length) {
+        logFilterInputs.forEach(input => {
+          input.addEventListener('change', () => renderLogEntries());
+        });
+      }
+
+      if (clearLogButton) {
+        clearLogButton.addEventListener('click', () => {
+          logEntries = [];
+          renderLogEntries();
+          showCommandFeedback('Cleared live log history', 'info');
+        });
+      }
+
+      document.addEventListener('admin:broadcast-command', event => {
+        metricState.commandsBroadcast += 1;
+        refreshMetrics();
+      });
+
+      document.addEventListener('admin:selected-command', event => {
+        metricState.commandsTargeted += 1;
+        refreshMetrics();
+      });
+
+      document.addEventListener('mqtt:connect-requested', event => {
+        startMqttClient(event.detail || {});
+      });
+
+      document.addEventListener('mqtt:config-cleared', () => {
+        stopMqttClient();
+        teamCardMap = {};
+        if (teamListEl) {
+          teamListEl.innerHTML = '';
+        }
+        teamEmptyEl = null;
+        ensureTeamsPlaceholder();
+        accentIndex = 0;
+        resetMetricState();
+        updateTeamCount();
+        updateOnlineCount();
+        updateWatchlist();
+      });
+
+      getAllTeamCards().forEach(registerTeamCard);
+
+      updateOnlineCount();
+      updateTeamCount();
+      updateWatchlist();
+      renderLogEntries();
+      ensureTeamsPlaceholder();
+    });
+  </script>
 </body>
 </html>
