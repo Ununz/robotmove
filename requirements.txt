@@ -1,6 +1,13 @@
-# Requirements for the project
-flask
-flask-cors
-openai
-python-dotenv
-paho-mqtt
+# Python dependencies for GigoNLbot_V4
+# Flask web framework and utilities
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# LLM integration (supports both GROQ and OpenAI)
+openai>=1.0.0
+
+# Environment configuration
+python-dotenv>=1.0.0
+
+# MQTT client for broker communication (optional, for testing)
+paho-mqtt>=2.0.0

@@ -1,8 +1,15 @@
 # GigoNLbot_V4
 
-A minimal Natural Language → Robot command translator (Flask backend + static UI).
+Natural Language → Robot Command Translator with MQTT Dashboard
 
-Repository URL format to send to students
+A complete robotics control system featuring:
+- Flask backend with LLM integration (GROQ/OpenAI)
+- Natural language command translation
+- MQTT-based robot communication via HiveMQ Cloud
+- Real-time admin dashboard for monitoring and control
+- Micro:bit firmware for robot hardware
+
+## Repository URL format to send to students
 
 https://github.com/<your-username>/<repo-name>
 
@@ -42,7 +49,17 @@ python app.py
 http://127.0.0.1:8787
 ```
 
-How you (instructor) create the GitHub repo and push (one-time):
+## Project Structure
+
+- `app.py` - Flask backend with LLM translation engine
+- `index.html` - Main user interface for sending commands
+- `admin.html` - Teacher dashboard for monitoring all robots
+- `microbit.ts` - Micro:bit firmware (TypeScript)
+- `static/` - Static assets (images, etc.)
+- `.env` - Environment configuration (API keys, provider selection)
+- `requirements.txt` - Python dependencies
+
+## How you (instructor) create the GitHub repo and push (one-time):
 
 Using GitHub website:
 - Create a new repository named `<repo-name>` under your account.
@@ -88,20 +105,42 @@ ngrok http 8787
 
 Then send the generated `https://*.ngrok.app` URL to students.
 
-## HiveMQ Cloud setup for dashboards
+## MQTT Setup
+
+### HiveMQ Cloud Broker Configuration
+
+The system uses HiveMQ Cloud for real-time robot communication:
 
 - **Broker:** `a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud`
-- **Ports:** `8883` (MQTTS) and `8884` (WSS)
-- **Credentials:** username `teacher`, password `Stylor123`
-- **Web clients:** use `wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt`
+- **Ports:** 
+  - `8883` (MQTTS - for firmware/backend)
+  - `8884` (WSS - for web dashboards)
+- **Credentials:** 
+  - Username: `teacher`
+  - Password: `Stylor123`
+- **Web clients URL:** `wss://a0fa947d537a4c1982d2d44a94275ad2.s1.eu.hivemq.cloud:8884/mqtt`
 
-To connect the instructor dashboard (`admin.html`):
+### Admin Dashboard (`admin.html`)
 
-1. Open the file in a browser (or serve the repo via `python -m http.server 8787`).
-2. Ensure the broker URL, username, and password fields match the values above.
-3. Click **Connect**; the badge should flip to “Live monitoring” once authenticated.
+Real-time monitoring and control interface for instructors:
 
-If you need to verify connectivity without a browser, activate the virtual environment and run the quick Python check:
+1. Open `admin.html` in a browser (or serve via `python -m http.server 8787`)
+2. Connection settings are pre-configured with HiveMQ credentials
+3. Click **Connect** to start monitoring
+4. Features:
+   - Live robot status tracking
+   - Team activity monitoring
+   - Broadcast commands to all robots
+   - Send targeted commands to specific teams
+   - Real-time event logging with filters
+
+### MQTT Topic Structure
+
+- Root topic: `nlbot`
+- Team topics: `nlbot/classA/TEAM01/evt` (events from robots)
+- Command topics: `nlbot/classA/TEAM01/cmd` (commands to robots)
+
+### Verify MQTT Connection (Optional)
 
 ```bash
 python - <<'PY'
@@ -138,11 +177,52 @@ PY
 
 You should see `Connected with: Success` if the credentials are accepted.
 
+## Features
+
+### Natural Language Processing
+- Supports Thai and English commands
+- LLM-powered command interpretation (GROQ or OpenAI)
+- Fallback rule-based parsing
+- Creative choreography for complex maneuvers (dance, spin, etc.)
+
+### Robot Control
+- Basic movements: forward, backward, left, right, stop
+- Timed movements with duration control
+- Distance measurement queries
+- Continuous movement mode (duration: 0)
+
+### Admin Dashboard
+- Real-time monitoring of all connected robots
+- Live event logging with customizable filters
+- Broadcast commands to all teams
+- Targeted commands to selected teams
+- Team status tracking (active/idle)
+- Watchlist feature for focused monitoring
+
+### Micro:bit Integration
+- TypeScript firmware for Micro:bit controllers
+- MQTT communication with ESP32 bridge
+- Command execution and acknowledgment
+- Heartbeat system for connectivity monitoring
+
+## Environment Variables
+
+Configure in `.env` file:
+
+```bash
+# LLM Provider (GROQ or OPENAI)
+PROVIDER=GROQ
+
+# API Keys
+GROQ_API_KEY=your_groq_key_here
+OPENAI_API_KEY=your_openai_key_here
+
+# Server Port (optional, defaults to 8787)
+PORT=8787
+```
+
+## License
+
+This project is for educational purposes.
+
 ---
-
-If you want, I can also:
-- Create the GitHub repo for you via the GitHub API (you'll need to provide a personal access token), or
-- Add a small `LICENSE` file and tweak `README.md` language, or
-- Automatically run the local `git` commands here (I couldn't earlier because the environment required agreeing to Xcode license).
-
-Which would you like next?
